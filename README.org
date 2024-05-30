@@ -1,0 +1,58 @@
+#+title: Reapl
+
+* Reapl, a reaper REPL
+
+The goal of this project is to implement a reaper REPL that speaks lisp.
+
+** Reaper
+
+[[https://www.reaper.fm/][Reaper]] is an highly extensible DAW.
+It is scriptable using the [[https://www.lua.org/][Lua language]].
+
+** Fennel
+
+[[https://fennel-lang.org/][Fennel]] is a lisp that compiles to lua.
+Therefore it is the perfect tool for creating a lisp repl for reaper.
+
+** Clojure
+
+Those pieces will come together using the clojure language.
+We will leverage the Clojure REPL workflow that is well supported in most editors.
+
+** Setup
+
+*** prerequisites
+
+- [[https://github.com/luarocks/luarocks][luarock]]
+- [[https://github.com/DhavalKapil/luaver][luaver]]
+- [[https://fennel-lang.org/setup#downloading-fennel][fennel]]
+
+**** luaver
+
+Depending on your version of reaper you will need:
+- lua 5.3 (reaper 6.x)
+- lua 5.4 (reaper 7.x)
+
+You can inspect what is available on your machine with this command:
+=luaver list=
+
+For instance if I want to install lua 5.4.5
+=luaver install 5.4.5=
+then
+=luaver use 5.4.5=
+
+**** luarocks
+
+those 2 libraries are needed
+
+=luarocks install bencode=
+=luarocks install dkjson=
+
+**** fennel
+
+We need to compiling the reascript/socket-repl.fnl script
+=fennel -c reascript/socket-repl.fnl > reascript/socket-repl.lua=
+
+*** Reaper
+
+At this point we should be able
