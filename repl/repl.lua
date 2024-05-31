@@ -1,5 +1,5 @@
 -- @description A fennel repl for reaper
--- @version 0.0.3
+-- @version 0.0.4
 -- @author pbaille
 -- @about
 --   # Fennel repl
