@@ -34,18 +34,22 @@
   (local m (udp:receive))
   (if m
       (let [{: code : compiled : no-return} (bencode.decode m)
-            compiled (or compiled (fnl.compile-string code))
-            (f err) (load compiled)
-            (success ret) (pcall f)]
+            (compiled? ret) (pcall (fn [] (or compiled (fnl.compile-string code))))]
         (log (.. "__________\n\n>> " code "\n"))
-        (if success
-            (do (log ret)
-                (or no-return
-                    (xpcall (fn [] (udp-out:send (json.encode ret {})))
-                            send-back-as-error)))
+        (if (not compiled?)
             (do (log-as-error ret)
                 (or no-return
-                    (send-back-as-error ret))))))
+                    (send-back-as-error ret)))
+            (let [(f err) (load compiled)
+                  (success ret) (pcall f)]
+              (if success
+                  (do (log ret)
+                      (or no-return
+                          (xpcall (fn [] (udp-out:send (json.encode ret {})))
+                                  send-back-as-error)))
+                  (do (log-as-error ret)
+                      (or no-return
+                          (send-back-as-error ret))))))))
   (reaper.defer repl))
 
 (fn start-repl [{: socketPort : peerPort}]

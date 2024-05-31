@@ -1,4 +1,3 @@
-package.path = package.path ..  ';/Users/pierrebaille/.luarocks/share/lua/5.4/?.lua'
 -- @noindex
 local opsys = reaper.GetOS()
 local extension
