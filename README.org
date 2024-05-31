@@ -1,5 +1,3 @@
-#+title: Reapl
-
 * Reapl, a reaper REPL
 
 The goal of this project is to implement a reaper REPL that speaks lisp.
@@ -24,7 +22,7 @@ Therefore it is the perfect tool for creating a lisp repl for reaper.
 
 In reaper 7.x, go to Extensions > ReaPack > Import repositories...
 
-paste this url: =https://raw.githubusercontent.com/pbaille/reapl/main/index.xml=
+Paste this url: =https://raw.githubusercontent.com/pbaille/reapl/main/index.xml=
 
 Now, the =pbaille_start fennel repl= should be available.
 
@@ -34,20 +32,21 @@ Once triggered, a console window will appear:
 
 ** Usage
 
-Now in order to talk with it, you will have to send messages to =http://localhost:9999= and eventually listen to =http://localhost:9997= for return values.
+2 options are available in order to talk to the reapl backend:
 
-2 options are available in order to do so:
+*** from clojure
 
-*** from a clojure repl
-
-clone this repo
+- Clone this repo
 
 =git clone git@github.com:pbaille/reapl.git=
 
-launch a repl
+- Launch a repl
 
 #+begin_src clojure
-(require '[reapl.interop :refer [<<]])
+(require '[reapl.interop :refer [>> <<]])
+;; the >> form let you send an expression to execute, without caring about the return value
+(>> (reaper.ShowConsoleMsg "hello"))
+;; the << form brings you back the value
 (<< (reaper.GetAppVersion))
 ;; => "7.x/xxx"
 #+end_src
@@ -56,5 +55,43 @@ There is some sample expressions to evaluate in =src/clojure/reapl/scratch.clj=
 
 *** from emacs
 
-load the =src/elisp/reapl-interop.el= file into emacs
-use the =pb/send-fnl-s-expression-to-reaper-socket-repl= function to send thing at point to reaper
+Load the =src/elisp/reapl-interop.el= file into emacs.
+
+Use the =pb/send-fnl-s-expression-to-reaper-socket-repl= function to send thing at point to reaper.
+
+Getting the return value is not implemented for now.
+
+*** manually
+
+In order to interact with the backend you will have to send messages to =http://localhost:9999= and eventually listen to =http://localhost:9997= for return values.
+
+please refer to =src/clojure/reapl/interop.clj= or =src/elisp/reapl-interop.el= for details.
+
+** Implementation
+
+The communication between the reapl backend and its client is done via UDP sockets.
+
+The luasocket library is not compatible with reaper's embedded version of lua, but thanks to Daniel Lumertz and Mavriq, some workarounds ([[https://github.com/mavriq-dev/mavriq-lua-sockets][1]], [[https://github.com/daniellumertz/DanielLumertz-Scripts/tree/master/LUA%20Sockets][2]]) have been found around this.
+
+The [[https://www.wikiwand.com/en/Bencode][bencode]] serialization format is used to communicate between client and backend.
+
+For more details please look at:
+- =src/fennel/socket-repl.fnl= (backend)
+- =src/clojure/reapl/interop.clj= (frontend)
+
+TODO...
+
+** Extra Fennel libraries
+
+This project comes with two helper libraries (written in fennel).
+It is still a work in progress but is already quite useful.
+
+Sources can be found in =src/fennel=
+
+*** pb-utils.fnl
+
+A collection of general purpose utility.
+
+*** reaper-utils.fnl
+
+Some fennel wrapping of the reaper API.
