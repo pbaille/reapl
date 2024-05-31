@@ -47,12 +47,14 @@ clone this repo
 launch a repl
 
 #+begin_src clojure
-(require '[reapl.interop :refer [>> <<]])
+(require '[reapl.interop :refer [<<]])
 (<< (reaper.GetAppVersion))
+;; => "7.x/xxx"
 #+end_src
 
-There is some sample expression to evaluate in =src/clojure/reapl/scratch.clj=
+There is some sample expressions to evaluate in =src/clojure/reapl/scratch.clj=
 
 *** from emacs
 
-TODO
+load the =src/elisp/reapl-interop.el= file into emacs
+use the =pb/send-fnl-s-expression-to-reaper-socket-repl= function to send thing at point to reaper
