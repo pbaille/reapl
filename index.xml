@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<index version="1" name="pbaille's reaper scripts" commit="8d344aae4183a5f423952cb674563fd69502357a">
+  <category name="repl">
+    <reapack name="repl.lua" type="script" desc="A fennel repl for reaper">
+      <metadata>
+        <description><![CDATA[{\rtf1\ansi\deff0{\fonttbl{\f0 \fswiss Helvetica;}{\f1 \fmodern Courier;}}
+{\colortbl;\red255\green0\blue0;\red0\green0\blue255;}
+\widowctrl\hyphauto
+
+{\pard \ql \f0 \sa180 \li0 \fi0 \outlinelevel0 \b \fs36 Fennel repl\par}
+{\pard \ql \f0 \sa180 \li0 \fi0 TODO\par}
+}
+]]></description>
+      </metadata>
+      <version name="0.0.2" author="pbaille" time="2024-05-31T07:04:02Z">
+        <source main="main">https://github.com/pbaille/reapl/raw/8d344aae4183a5f423952cb674563fd69502357a/repl/repl.lua</source>
+        <source main="main" file="pbaille_start fennel repl.lua">https://github.com/pbaille/reapl/raw/8d344aae4183a5f423952cb674563fd69502357a/repl/pbaille_start%20fennel%20repl.lua</source>
+        <source file="../lib/bencode.lua">https://github.com/pbaille/reapl/raw/8d344aae4183a5f423952cb674563fd69502357a/lib/bencode.lua</source>
+        <source file="../lib/dkjson.lua">https://github.com/pbaille/reapl/raw/8d344aae4183a5f423952cb674563fd69502357a/lib/dkjson.lua</source>
+        <source file="../lib/fennel.lua">https://github.com/pbaille/reapl/raw/8d344aae4183a5f423952cb674563fd69502357a/lib/fennel.lua</source>
+        <source file="../lib/reaper-socket.lua">https://github.com/pbaille/reapl/raw/8d344aae4183a5f423952cb674563fd69502357a/lib/reaper-socket.lua</source>
+        <source file="../compiled/pb-utils.lua">https://github.com/pbaille/reapl/raw/8d344aae4183a5f423952cb674563fd69502357a/compiled/pb-utils.lua</source>
+        <source file="../compiled/reaper-utils.lua">https://github.com/pbaille/reapl/raw/8d344aae4183a5f423952cb674563fd69502357a/compiled/reaper-utils.lua</source>
+        <source file="../compiled/socket-repl.lua">https://github.com/pbaille/reapl/raw/8d344aae4183a5f423952cb674563fd69502357a/compiled/socket-repl.lua</source>
+        <source file="../lib/socket module/socket/core.dll">https://github.com/pbaille/reapl/raw/8d344aae4183a5f423952cb674563fd69502357a/lib/socket%20module/socket/core.dll</source>
+        <source file="../lib/socket module/socket/core.so">https://github.com/pbaille/reapl/raw/8d344aae4183a5f423952cb674563fd69502357a/lib/socket%20module/socket/core.so</source>
+        <source file="../lib/socket module/socket/core.so.linux">https://github.com/pbaille/reapl/raw/8d344aae4183a5f423952cb674563fd69502357a/lib/socket%20module/socket/core.so.linux</source>
+      </version>
+    </reapack>
+  </category>
+</index>
