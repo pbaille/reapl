@@ -40,7 +40,7 @@
             (do (log-as-error ret)
                 (or no-return
                     (send-back-as-error ret)))
-            (let [(f err) (load compiled)
+            (let [(f err) (load ret)
                   (success ret) (pcall f)]
               (if success
                   (do (log ret)

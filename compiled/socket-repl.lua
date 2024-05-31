@@ -41,7 +41,7 @@ local function repl()
       log_as_error(ret)
       do local _ = (no_return or send_back_as_error(ret)) end
     else
-      local f, err = load(compiled)
+      local f, err = load(ret)
       local success, ret0 = pcall(f)
       if success then
         log(ret0)

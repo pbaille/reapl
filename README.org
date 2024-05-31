@@ -14,11 +14,6 @@ It is scriptable using the [[https://www.lua.org/][Lua language]].
 [[https://fennel-lang.org/][Fennel]] is a lisp that compiles to lua.
 Therefore it is the perfect tool for creating a lisp repl for reaper.
 
-** Clojure
-
-Those pieces will come together using the clojure language.
-We will leverage the Clojure REPL workflow that is well supported in most editors.
-
 ** Setup
 
 *** Prerequisites
@@ -32,3 +27,32 @@ In reaper 7.x, go to Extensions > ReaPack > Import repositories...
 paste this url: =https://raw.githubusercontent.com/pbaille/reapl/main/index.xml=
 
 Now, the =pbaille_start fennel repl= should be available.
+
+Once triggered, a console window will appear:
+
+[[file:resources/repl_window.png]]
+
+** Usage
+
+Now in order to talk with it, you will have to send messages to =http://localhost:9999= and eventually listen to =http://localhost:9997= for return values.
+
+2 options are available in order to do so:
+
+*** from a clojure repl
+
+clone this repo
+
+=git clone git@github.com:pbaille/reapl.git=
+
+launch a repl
+
+#+begin_src clojure
+(require '[reapl.interop :refer [>> <<]])
+(<< (reaper.GetAppVersion))
+#+end_src
+
+There is some sample expression to evaluate in =src/clojure/reapl/scratch.clj=
+
+*** from emacs
+
+TODO
