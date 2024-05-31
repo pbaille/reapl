@@ -16,7 +16,11 @@
 (fn setup-udp [in-port out-port]
   (udp:setoption "reuseaddr" true)
   (assert (udp:setsockname "127.0.0.1" in-port))
-  (assert (udp-out:setpeername "127.0.0.1" out-port)))
+  (assert (udp-out:setpeername "127.0.0.1" out-port))
+  (log (.. "setting udp sockets:\n"
+           "in: " in-port
+           "\nout-port: " out-port
+           "\n\nWelcome to fennel repl !\n")))
 
 (fn log-as-error [err]
   (log (.. "error:\n\n" (or err "nil"))))

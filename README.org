@@ -21,8 +21,14 @@ We will leverage the Clojure REPL workflow that is well supported in most editor
 
 ** Setup
 
-*** prerequisites
+*** Prerequisites
+
+- [[https://reapack.com/][reapack]]
 
 *** Reaper
 
-At this point we should be able
+In reaper 7.x, go to Extensions > ReaPack > Import repositories...
+
+paste this url: =https://raw.githubusercontent.com/pbaille/reapl/main/index.xml=
+
+Now, the =pbaille_start fennel repl= should be available.
