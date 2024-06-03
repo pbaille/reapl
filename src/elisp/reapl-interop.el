@@ -82,6 +82,7 @@
        (map! :localleader
              (:map reaper-mode-map
                    "r" #'pb/reaper-repl
+                   "e b" #'pb/reapl-send-buffer
                    ))
 
        (require 'symex-interface)
