@@ -223,7 +223,6 @@
  : file
  : tbl
  : hof
- : reascript
  : reload
  : fold
  : seq}
