@@ -17,13 +17,20 @@
          (>> (ru.take.grid.set T 2))
 
          (<< (ru.take.focus.get T))
-         (<< (ru.take.focus.set T {:x 0 :y 60}))
-
-         )
+         (<< (ru.take.focus.set T {:x 0 :y 60})))
 
 (comment (socket/send-message LOCALHOST REAPER_IN_PORT
                               (encode {:code "(+ 1a 2)"
                                        :no-return "yes"}))
+
+         (>> (let [me (ru.midi-editor.get-active)
+                   pc {:get (partial ru.midi-editor.pitch-cursor.get me)
+                       :set (partial ru.midi-editor.pitch-cursor.set me)}]
+               (pc.set 62)))
+
+         (>> )
+
+         (>> ((partial (fn [a b] (+ a b)) 1) 2))
 
          (do :checks
 
