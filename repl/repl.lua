@@ -5,7 +5,8 @@
 --   # Fennel repl
 --   TODO
 -- @provides
---    [main] pbaille_start fennel repl.lua
+--    [main] pbaille_start reapl console.lua
+--    [main] pbaille_start reapl server.lua
 --    [nomain] ../lib/*.lua
 --    [nomain] ../compiled/*.lua
 --    [nomain] ../lib/socket module/socket/core.dll
