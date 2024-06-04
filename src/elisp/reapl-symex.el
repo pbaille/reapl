@@ -20,23 +20,23 @@
 ;;; Code:
 
 (require 'symex-interface)
+(require 'symex-traversals)
 (require 'reapl-mode)
 
-(defun pb/reapl-no-op ()
+(defun reapl-symex_no-op ()
+  "Do nothing."
   nil)
 
 (symex-interface-add
  'reapl-mode
- (list :eval #'pb/reapl-send-thing-at-point
+ (list :eval #'reapl-mode_send-thing-at-point
        :eval-definition (lambda () (symex-goto-lowest) (pb/reapl-send-thing-at-point))
-       :eval-pretty #'pb/reapl-send-thing-at-point
-       :eval-thunk #'pb/reapl-no-op
-       :eval-print #'pb/reapl-no-op
-       :describe-symbol #'pb/reapl-no-op
-       :repl #'pb/reaper-repl
-       :run #'pb/reapl-send-buffer))
-
-
+       :eval-pretty #'reapl-mode_send-thing-at-point
+       :eval-thunk #'reapl-symex_no-op
+       :eval-print #'reapl-symex_no-op
+       :describe-symbol #'reapl-symex_no-op
+       :repl #'reapl-mode_repl
+       :run #'reapl-mode_send-buffer))
 
 (provide 'reapl-symex)
 ;;; reapl-symex.el ends here
