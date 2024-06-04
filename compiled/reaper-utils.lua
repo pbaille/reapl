@@ -147,17 +147,13 @@ take["time-selection"].update = function(t, side, delta)
   local cursor_pos = take.cursor.get(t)
   local sel = (take["time-selection"].get(t) or {start = cursor_pos, ["end"] = cursor_pos})
   local increment = take["qpos->ppq"](t, (delta * take.grid.get(t)))
-  do
-    local _8_ = side
-    if (_8_ == "fw") then
-      take["time-selection"].set(t, sel.start, (sel["end"] + increment))
-    elseif (_8_ == "bw") then
-      take["time-selection"].set(t, (sel.start + increment), sel["end"])
-    elseif true then
-      local _ = _8_
-      take["time-selection"].set(t, (sel.start + increment), (sel["end"] + increment))
-    else
-    end
+  if (side == "fw") then
+    take["time-selection"].set(t, sel.start, (sel["end"] + increment))
+  elseif (side == "bw") then
+    take["time-selection"].set(t, (sel.start + increment), sel["end"])
+  else
+    local _ = side
+    take["time-selection"].set(t, (sel.start + increment), (sel["end"] + increment))
   end
   return "ok"
 end
@@ -165,10 +161,10 @@ local NOON_MIDI_NOTE_SHIFT = 2
 take["note-selection"].get = function(t)
   local notes = take.notes.get(t)
   local selected_notes
-  local function _10_(n)
+  local function _9_(n)
     return n.selected
   end
-  selected_notes = seq.filter(notes, _10_)
+  selected_notes = seq.filter(notes, _9_)
   local candidates
   if (0 == #selected_notes) then
     candidates = notes
@@ -176,19 +172,16 @@ take["note-selection"].get = function(t)
     candidates = selected_notes
   end
   local time_selection = take["time-selection"].get(t)
-  local _12_ = time_selection
-  if ((_G.type(_12_) == "table") and (nil ~= (_12_).start) and (nil ~= (_12_)["end"])) then
-    local start = (_12_).start
-    local _end = (_12_)["end"]
-    local function _13_(n)
-      return (function(_14_,_15_,_16_,_17_) return (_14_ <= _15_) and (_15_ <= _16_) and (_16_ <= _17_) end)(start,n["start-position"],n["end-position"],(_end + NOON_MIDI_NOTE_SHIFT))
+  if ((_G.type(time_selection) == "table") and (nil ~= time_selection.start) and (nil ~= time_selection["end"])) then
+    local start = time_selection.start
+    local _end = time_selection["end"]
+    local function _11_(n)
+      return (function(_12_,_13_,_14_,_15_) return (_12_ <= _13_) and (_13_ <= _14_) and (_14_ <= _15_) end)(start,n["start-position"],n["end-position"],(_end + NOON_MIDI_NOTE_SHIFT))
     end
-    return seq.filter(candidates, _13_)
-  elseif true then
-    local _ = _12_
-    return candidates
+    return seq.filter(candidates, _11_)
   else
-    return nil
+    local _ = time_selection
+    return candidates
   end
 end
 take["note-selection"]["delete-all"] = function(t)
@@ -224,83 +217,83 @@ take.focus.get = function(t)
   return {x = take.cursor.get(t), y = midi_editor["pitch-cursor"].get(midi_editor["get-active"]())}
 end
 take.focus.set = function(t, upd)
-  local _let_19_ = tbl.upd(take.focus.get(t), upd)
-  local x = _let_19_["x"]
-  local y = _let_19_["y"]
-  local new_focus = _let_19_
+  local _let_17_ = tbl.upd(take.focus.get(t), upd)
+  local x = _let_17_["x"]
+  local y = _let_17_["y"]
+  local new_focus = _let_17_
   take.cursor.set(t, x)
   midi_editor["pitch-cursor"].set(midi_editor["get-active"](), y)
   return new_focus
 end
 take.focus["next-note"] = function(t)
+  local _let_18_ = take.focus.get(t)
+  local x = _let_18_["x"]
+  local y = _let_18_["y"]
+  local candidates
+  local function _19_(n)
+    return ((n["start-position"] > x) or ((n["start-position"] == x) and (n.pitch > y)))
+  end
+  candidates = take.notes.filter(t, _19_)
+  return take["focus-note"](t, seq.first(seq["sort-with"](candidates, note.lte)))
+end
+take.focus["previous-note"] = function(t)
   local _let_20_ = take.focus.get(t)
   local x = _let_20_["x"]
   local y = _let_20_["y"]
   local candidates
   local function _21_(n)
-    return ((n["start-position"] > x) or ((n["start-position"] == x) and (n.pitch > y)))
-  end
-  candidates = take.notes.filter(t, _21_)
-  return take["focus-note"](t, seq.first(seq["sort-with"](candidates, note.lte)))
-end
-take.focus["previous-note"] = function(t)
-  local _let_22_ = take.focus.get(t)
-  local x = _let_22_["x"]
-  local y = _let_22_["y"]
-  local candidates
-  local function _23_(n)
     return ((n["start-position"] < x) or ((n["start-position"] == x) and (n.pitch < y)))
   end
-  candidates = take.notes.filter(t, _23_)
+  candidates = take.notes.filter(t, _21_)
   return take["focus-note"](t, seq.first(seq["sort-with"](candidates, note.gte)))
 end
 take.focus["get-closest-note"] = function(t)
-  local _let_24_ = take.focus.get(t)
-  local x = _let_24_["x"]
-  local y = _let_24_["y"]
+  local _let_22_ = take.focus.get(t)
+  local x = _let_22_["x"]
+  local y = _let_22_["y"]
   local notes = take.notes.get(t)
   local by_dist
-  local function _25_(n)
+  local function _23_(n)
     return {["delta-x"] = math.abs((n["start-position"] - x)), ["delta-y"] = math.abs((n.pitch - y)), note = n}
   end
-  local function _28_(_26_)
-    local _arg_27_ = _26_
-    local delta_x = _arg_27_["delta-x"]
-    local delta_y = _arg_27_["delta-y"]
+  local function _26_(_24_)
+    local _arg_25_ = _24_
+    local delta_x = _arg_25_["delta-x"]
+    local delta_y = _arg_25_["delta-y"]
     return (delta_x + delta_y)
   end
-  by_dist = seq["sort-by"](seq.keep(notes, _25_), _28_)
-  local t_29_ = seq.first(by_dist)
-  if (nil ~= t_29_) then
-    t_29_ = (t_29_).note
+  by_dist = seq["sort-by"](seq.keep(notes, _23_), _26_)
+  local t_27_ = seq.first(by_dist)
+  if (nil ~= t_27_) then
+    t_27_ = t_27_.note
   else
   end
-  return t_29_
+  return t_27_
 end
 take.focus["closest-note"] = function(t)
   return take["focus-note"](t, take.focus["get-closest-note"](t))
 end
 take.focus["cycle-at-cursor"] = function(t)
-  local _let_31_ = take.focus.get(t)
-  local x = _let_31_["x"]
-  local y = _let_31_["y"]
+  local _let_29_ = take.focus.get(t)
+  local x = _let_29_["x"]
+  local y = _let_29_["y"]
   local candidates
-  local function _32_(n)
+  local function _30_(n)
     return (n["start-position"] == x)
   end
-  candidates = take.notes.filter(t, _32_)
+  candidates = take.notes.filter(t, _30_)
   local n_choices = #candidates
   local current_idx = seq["index-of"](candidates, y)
   if not current_idx then
     return take.focus.set(t, {x = x, y = seq.first(candidates)})
   elseif (n_choices > 1) then
-    local _33_
+    local _31_
     if (current_idx == n_choices) then
-      _33_ = 1
+      _31_ = 1
     else
-      _33_ = (1 + current_idx)
+      _31_ = (1 + current_idx)
     end
-    return take.focus.set(t, {x = x, y = candidates[_33_]})
+    return take.focus.set(t, {x = x, y = candidates[_31_]})
   else
     return nil
   end
@@ -317,24 +310,24 @@ take["focus-note"] = function(t, n)
   end
 end
 take["focused-note"] = function(t)
-  local _let_37_ = take.focus.get(t)
-  local x = _let_37_["x"]
-  local y = _let_37_["y"]
-  local function _38_(n)
+  local _let_35_ = take.focus.get(t)
+  local x = _let_35_["x"]
+  local y = _let_35_["y"]
+  local function _36_(n)
     return ((x == n["start-position"]) and (y == n.pitch))
   end
-  return seq.find(take.notes.get(t), _38_)
+  return seq.find(take.notes.get(t), _36_)
 end
-take["set-note"] = function(t, _39_)
-  local _arg_40_ = _39_
-  local channel = _arg_40_["channel"]
-  local end_position = _arg_40_["end-position"]
-  local muted = _arg_40_["muted"]
-  local pitch = _arg_40_["pitch"]
-  local selected = _arg_40_["selected"]
-  local start_position = _arg_40_["start-position"]
-  local velocity = _arg_40_["velocity"]
-  local idx = _arg_40_["idx"]
+take["set-note"] = function(t, _37_)
+  local _arg_38_ = _37_
+  local channel = _arg_38_["channel"]
+  local end_position = _arg_38_["end-position"]
+  local muted = _arg_38_["muted"]
+  local pitch = _arg_38_["pitch"]
+  local selected = _arg_38_["selected"]
+  local start_position = _arg_38_["start-position"]
+  local velocity = _arg_38_["velocity"]
+  local idx = _arg_38_["idx"]
   return r.MIDI_SetNote(t, idx, selected, muted, start_position, end_position, channel, pitch, velocity, true)
 end
 take["upd-note"] = function(t, n, u0)
@@ -347,14 +340,14 @@ take["delete-notes"] = function(t, xs)
   local idxs
   do
     local idxs0
-    local function _41_(n)
+    local function _39_(n)
       return n.idx
     end
-    idxs0 = seq.keep(xs, _41_)
-    local function _42_(a, b)
+    idxs0 = seq.keep(xs, _39_)
+    local function _40_(a, b)
       return (a > b)
     end
-    idxs = seq["sort-with"](idxs0, _42_)
+    idxs = seq["sort-with"](idxs0, _40_)
   end
   take["disable-sort"](t)
   for _, i in ipairs(idxs) do
@@ -363,14 +356,14 @@ take["delete-notes"] = function(t, xs)
   return take.sort(t)
 end
 take["insert-note"] = function(t, n)
-  local _let_43_ = take.note.mk(t, n)
-  local channel = _let_43_["channel"]
-  local end_position = _let_43_["end-position"]
-  local muted = _let_43_["muted"]
-  local pitch = _let_43_["pitch"]
-  local selected = _let_43_["selected"]
-  local start_position = _let_43_["start-position"]
-  local velocity = _let_43_["velocity"]
+  local _let_41_ = take.note.mk(t, n)
+  local channel = _let_41_["channel"]
+  local end_position = _let_41_["end-position"]
+  local muted = _let_41_["muted"]
+  local pitch = _let_41_["pitch"]
+  local selected = _let_41_["selected"]
+  local start_position = _let_41_["start-position"]
+  local velocity = _let_41_["velocity"]
   local idx = take.notes.count(t)
   r.MIDI_InsertNote(t, selected, muted, start_position, end_position, channel, pitch, velocity, true)
   return take["get-note"](t, idx)

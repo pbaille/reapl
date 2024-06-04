@@ -58,18 +58,16 @@ tbl.matcher = function(m)
     local function _8_(t)
       local ok = true
       for km, vm in pairs(m) do
-        local function _9_()
+        local function _9_(...)
           local _10_ = t[km]
           if (nil ~= _10_) then
             local vt = _10_
             local _11_ = type(vm)
             if (_11_ == "function") then
               return vm(vt)
-            elseif true then
+            else
               local _ = _11_
               return (vm == vt)
-            else
-              return nil
             end
           else
             return nil
@@ -90,7 +88,7 @@ tbl.getter = function(at)
     local function _16_(this)
       local t_17_ = this
       if (nil ~= t_17_) then
-        t_17_ = (t_17_)[at]
+        t_17_ = t_17_[at]
       else
       end
       return t_17_
@@ -102,7 +100,7 @@ tbl.getter = function(at)
       for _, k in ipairs(at) do
         local t_20_ = this0
         if (nil ~= t_20_) then
-          t_20_ = (t_20_)[k]
+          t_20_ = t_20_[k]
         else
         end
         this0 = t_20_
@@ -125,10 +123,9 @@ tbl["upd-at"] = function(t, k, u)
     local _23_ = type(u)
     if (_23_ == "function") then
       t[k] = u(t[k])
-    elseif true then
+    else
       local _ = _23_
       t[k] = u
-    else
     end
   end
   return t
@@ -190,17 +187,17 @@ seq.concat = function(s, xs)
   return s
 end
 seq.keep = function(s, f)
-  local tbl_17_auto = {}
-  local i_18_auto = #tbl_17_auto
+  local tbl_19_auto = {}
+  local i_20_auto = 0
   for _, x in ipairs(s) do
-    local val_19_auto = f(x)
-    if (nil ~= val_19_auto) then
-      i_18_auto = (i_18_auto + 1)
-      do end (tbl_17_auto)[i_18_auto] = val_19_auto
+    local val_21_auto = f(x)
+    if (nil ~= val_21_auto) then
+      i_20_auto = (i_20_auto + 1)
+      do end (tbl_19_auto)[i_20_auto] = val_21_auto
     else
     end
   end
-  return tbl_17_auto
+  return tbl_19_auto
 end
 seq.filter = function(s, f)
   local function _29_(x)
@@ -311,4 +308,4 @@ hof.lte = function(x)
   end
   return _44_
 end
-return {path = path, file = file, tbl = tbl, hof = hof, reascript = reascript, reload = reload, fold = fold, seq = seq}
+return {path = path, file = file, tbl = tbl, hof = hof, reload = reload, fold = fold, seq = seq}
