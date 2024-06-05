@@ -17,7 +17,7 @@ local function setup_udp(_1_)
   assert(udp:setsockname("127.0.0.1", socketPort))
   assert(udp_out:setpeername("127.0.0.1", peerPort))
   if not noConsole then
-    return ru.misc.log(("setting udp sockets:\n" .. "in: localhost:" .. __fnl_global__in_2dport .. "\nout: localhost:" .. __fnl_global__out_2dport .. "\n\nWelcome to fennel repl !\n"))
+    return ru.misc.log(("setting udp sockets:\n" .. "in: localhost:" .. __fnl_global__in_2dport .. "\nout: localhost:" .. __fnl_global__out_2dport .. "\n\nReapl server running !\n"))
   else
     return nil
   end
