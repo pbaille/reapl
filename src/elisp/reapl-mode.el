@@ -68,14 +68,30 @@
 
 ;;; reapl
 
-(defvar reapl-program (expand-file-name "../../scripts/reapl.py" default-directory))
+(defvar reapl-program)
 
 (defun reapl-mode_repl ()
   "Launch or bring up to front the Reapl REPL process in a comint buffer."
   (interactive)
+  (if (not reapl-program)
+      (error "Please set reapl-program variable in order to be able to launch the repl"))
   (with-current-buffer (or (get-buffer "*reapl*")
                            (make-comint "reapl" reapl-program))
     (display-buffer (current-buffer))))
+
+(defun reapl-mode_repl-quit ()
+  "Quit the repl."
+  (interactive)
+  (let ((b (get-buffer "*reapl*")))
+    (when b
+      (kill-process (get-buffer-process b))
+      (kill-buffer b))))
+
+(defun reapl-mode_restart-repl ()
+  "Restart the repl."
+  (interactive)
+  (reapl-mode_repl-quit)
+  (reapl-mode_repl))
 
 (defun reapl-mode_send-string (s)
   "Send string S to the Reapl REPL."
