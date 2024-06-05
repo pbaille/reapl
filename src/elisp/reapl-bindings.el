@@ -20,6 +20,8 @@
 ;;; Code:
 
 (require 'reapl-mode)
+(require 'doom-keybinds)
+
 
 (map! :localleader
       (:map reapl-mode-map
