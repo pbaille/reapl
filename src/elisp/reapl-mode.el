@@ -95,7 +95,13 @@
 
 (defun reapl-mode_send-string (s)
   "Send string S to the Reapl REPL."
-  (comint-send-string (get-buffer-process "*reapl*") (concat s "\C-d"))
+  (comint-send-string (get-buffer-process "*reapl*") (concat "{\"eval\": \"" s "\"}\C-d"))
+  (with-current-buffer (get-buffer "*reapl*")
+    (comint-send-eof)))
+
+(defun reapl-mode_get-completions (s)
+  "Ask some completions for S to the Reapl REPL."
+  (comint-send-string (get-buffer-process "*reapl*") (concat "{\"complete\": \"" s "\"}\C-d"))
   (with-current-buffer (get-buffer "*reapl*")
     (comint-send-eof)))
 
@@ -104,10 +110,32 @@
   (interactive)
   (reapl-mode_send-string (reapl-mode_thing-at-point)))
 
+(defun reapl-mode_complete-symbol-at-point ()
+  "Ask for completions for the symbol at point to the reaper REPL."
+  (interactive)
+  (let ((sym (thing-at-point 'symbol)))
+    (when sym (reapl-mode_get-completions sym))))
+
 (defun reapl-mode_send-buffer ()
   "Send the entire buffer content to the Reapl REPL."
   (interactive)
   (reapl-mode_send-string (buffer-substring-no-properties (point-min) (point-max))))
+
+(defvar reapl-mode_last-comint-output)
+
+(defun reapl-mode_comint-output-filter (x)
+  "A =comint-output-filter-function= that records the last *reapl* output X."
+  (when (string-equal "*reapl*" (buffer-name (current-buffer)))
+    (print "1")
+    (let ((s (substring-no-properties x)))
+      (when (string-prefix-p "{" s)
+        (print 2)
+        (setq reapl-mode_last-comint-output (json-read-from-string s))))))
+
+(setq comint-output-filter-functions
+      (cons #'reapl-mode_comint-output-filter comint-output-filter-functions))
+
+;(setq comint-output-filter-functions nil)
 
 ;;; reaper-mode
 
@@ -117,6 +145,29 @@
   fennel-mode
   "reapl mode"
   :keymap reapl-mode-map)
+
+(require 'company)
+(defun reapl-mode_company-backend (command &optional arg &rest ignored)
+  "Reapl mode company backend. COMMAND &optional ARG &rest IGNORED."
+  (interactive (list 'interactive))
+
+  (cl-case command
+    (interactive (company-begin-backend 'reapl-mode_company-backend))
+    (prefix (and (eq major-mode 'reapl-mode) ;; Replace with required mode
+                 (thing-at-point 'symbol)))
+    (candidates
+     (cl-remove-if-not
+      (lambda (c) (string-prefix-p arg c))
+      (append (alist-get 'completions reapl-mode_last-comint-output)
+              nil)))))
+
+(defun reapl-mode_company-hook ()
+  "Company hook for reapl-mode."
+  (print "run reapl hook")
+  (company-mode 1)
+  (add-to-list 'company-backends 'reapl-mode_company-backend))
+
+(add-hook 'reapl-mode-hook 'reapl-mode_company-hook)
 
 (provide 'reapl-mode)
 ;;; reapl-mode.el ends here

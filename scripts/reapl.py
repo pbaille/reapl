@@ -2,7 +2,6 @@
 
 import socket
 import json
-import bencodepy
 import sys
 
 def start_forwarder():
@@ -12,27 +11,24 @@ def start_forwarder():
     receive_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     receive_socket.bind(('localhost', 9997))
     print("Welcome to reapl:")
-    print("--------")
     while True:
             msg = sys.stdin.read()
             # if the message is not empty, process it
             if msg:
+                print("--------")
                 print(msg)
-                # encode input using bencode
-                msg = bencodepy.encode({'code': msg.strip()})
+                print(">---")
 
                 # send data to external process
-                send_socket.sendto(msg, ('localhost', 9999))
+                send_socket.sendto(msg.encode(), ('localhost', 9999))
 
                 # receive response from external process
-                data, addr = receive_socket.recvfrom(1024)
+                data, addr = receive_socket.recvfrom(10000)
 
                 # parse JSON response and pretty print it
                 data = json.loads(data)
                 pretty_json = json.dumps(data, indent=4, sort_keys=True)
-                print(">---")
                 print(pretty_json)
-                print("--------")
             # if the message is empty, stop the loop
 
 start_forwarder()
