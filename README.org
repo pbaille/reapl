@@ -24,7 +24,7 @@ In reaper 7.x, go to Extensions > ReaPack > Import repositories...
 
 Paste this url: =https://raw.githubusercontent.com/pbaille/reapl/main/index.xml=
 
-Now, the =pbaille_start fennel repl= should be available.
+Now, the =pbaille_start reapl server= should be available.
 
 Once triggered, a console window will appear:
 
@@ -55,17 +55,26 @@ There is some sample expressions to evaluate in =src/clojure/reapl/scratch.clj=
 
 *** from emacs
 
-Load the =src/elisp/reapl-interop.el= file into emacs.
+Load the =src/elisp/reapl-mode.el= file into emacs.
 
-Use the =pb/send-fnl-s-expression-to-reaper-socket-repl= function to send thing at point to reaper.
+**** connection
 
-Getting the return value is not implemented for now.
+Use the =reapl-mode_connect= function in order to connect to the reapl server.
+
+**** evaluation
+
+Then the =reapl-mode_send-thing-at-point= or =reapl-mode_send-buffer= to talk to the server.
+The resulting values will be logged into the =*reapl-evaluation*= buffer.
+
+**** completion
+
+You can ask for code completion using =reapl-mode_complete-symbol-at-point=.
 
 *** manually
 
 In order to interact with the backend you will have to send messages to =http://localhost:9999= and eventually listen to =http://localhost:9997= for return values.
 
-please refer to =src/clojure/reapl/interop.clj= or =src/elisp/reapl-interop.el= for details.
+please refer to =src/clojure/reapl/interop.clj= or =src/elisp/reapl-mode.el= for details.
 
 ** Implementation
 
@@ -73,7 +82,7 @@ The communication between the reapl backend and its client is done via UDP socke
 
 The luasocket library is not compatible with reaper's embedded version of lua, but thanks to Daniel Lumertz and Mavriq, some workarounds ([[https://github.com/mavriq-dev/mavriq-lua-sockets][1]], [[https://github.com/daniellumertz/DanielLumertz-Scripts/tree/master/LUA%20Sockets][2]]) have been found around this.
 
-The [[https://www.wikiwand.com/en/Bencode][bencode]] serialization format is used to communicate between client and backend.
+The JSON serialization format is used to communicate between client and backend.
 
 For more details please look at:
 - =src/fennel/socket-repl.fnl= (backend)
