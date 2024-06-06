@@ -20,13 +20,17 @@
 ;;; Code:
 
 (require 'reapl-mode)
-(require 'doom-keybinds)
-
 
 (map! :localleader
       (:map reapl-mode-map
+            "'" #'reapl-mode_connect
             "r" #'reapl-mode_repl
-            "e b" #'reapl-mode_send-buffer))
+            "q" #'reapl-mode_repl-quit
+            "e b" #'reapl-mode_send-buffer
+            "c" #'reapl-mode_complete-symbol-at-point))
+
+(map! (:map reapl-mode-map
+       :i "TAB" #'reapl-mode_complete-symbol-at-point))
 
 (provide 'reapl-bindings)
 ;;; reapl-bindings.el ends here

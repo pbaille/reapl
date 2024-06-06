@@ -1,7 +1,6 @@
 (ns reapl.interop
   (:refer-clojure :exclude [send])
   (:require [reapl.socket :as socket]
-            [bencode.core :as bc]
             [backtick :as bt]
             [clojure.core.async :as async]
             [clojure.data.json :as json]
@@ -21,18 +20,13 @@
                     (async/close! channel)
                     (socket/udp-chan REAPER_OUT_PORT))))
 
-(defn encode [data]
-  (-> (doto (java.io.ByteArrayOutputStream.)
-        (bc/write-bencode data))
-      .toString))
-
-(defn message [code]
-  {:code (str/replace (str code) "," " ")})
+(defn eval-message [code & no-return]
+  (json/write-str (merge {:eval (str/replace (str code) "," " ")}
+                         (when no-return {:no-return "yes"}))))
 
 (defn send [code]
   (socket/send-message LOCALHOST REAPER_IN_PORT
-                       (encode (assoc (message code)
-                                      :no-return "yes"))))
+                       (eval-message code :no-return)))
 
 (defmacro >>
   {:clj-kondo/ignore true}
@@ -50,7 +44,7 @@
 
 (defn ask [code]
   (socket/send-message LOCALHOST REAPER_IN_PORT
-                       (encode (message code)))
+                       (eval-message code))
   (get-response! 2000))
 
 (defmacro <<
