@@ -100,7 +100,34 @@ local function repl_fn(_7_)
         xpcall(_10_, error_handler(udp_eval_out, "eval"))
       elseif complete then
         local function _12_()
-          return udp_complete_out:send(json.encode({request = complete, completions = comp(complete)}, {}))
+          local function _15_()
+            local completions = comp(complete)
+            local types
+            do
+              local tbl_14_auto = {}
+              for _, v in ipairs(completions) do
+                local k_15_auto, v_16_auto = nil, nil
+                do
+                  local ok_3f, ret = send(("(type " .. v .. ")"))
+                  local function _13_()
+                    if ok_3f then
+                      return ret.values[1]
+                    else
+                      return "unknown"
+                    end
+                  end
+                  k_15_auto, v_16_auto = v, _13_()
+                end
+                if ((k_15_auto ~= nil) and (v_16_auto ~= nil)) then
+                  tbl_14_auto[k_15_auto] = v_16_auto
+                else
+                end
+              end
+              types = tbl_14_auto
+            end
+            return json.encode({request = complete, completions = completions, types = types}, {})
+          end
+          return udp_complete_out:send(_15_())
         end
         xpcall(_12_, error_handler(udp_complete_out, "encode"))
       else
@@ -111,13 +138,13 @@ local function repl_fn(_7_)
   end
   return repl
 end
-local function start_repl(_15_)
-  local _arg_16_ = _15_
-  local options = _arg_16_
-  local socketPort = _arg_16_["socketPort"]
-  local evalPeerPort = _arg_16_["evalPeerPort"]
-  local completePeerPort = _arg_16_["completePeerPort"]
-  local noConsole = _arg_16_["noConsole"]
+local function start_repl(_18_)
+  local _arg_19_ = _18_
+  local options = _arg_19_
+  local socketPort = _arg_19_["socketPort"]
+  local evalPeerPort = _arg_19_["evalPeerPort"]
+  local completePeerPort = _arg_19_["completePeerPort"]
+  local noConsole = _arg_19_["noConsole"]
   setup_udp(options)
   return repl_fn(options)()
 end
