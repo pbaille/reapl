@@ -27,8 +27,8 @@
   "Do nothing."
   nil)
 
-(symex-interface-add
- 'reapl-mode
+(symex-interface-extend
+ (list 'reapl-mode)
  (list :eval #'reapl-mode_send-thing-at-point
        :eval-definition (lambda () (symex-goto-lowest) (pb/reapl-send-thing-at-point))
        :eval-pretty #'reapl-mode_send-thing-at-point

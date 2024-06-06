@@ -118,7 +118,9 @@
   (setq reapl-mode_completions
         (append (alist-get 'completions (json-read-from-string msg))
                 nil))
-  (call-interactively (reapl-mode_company-backend)))
+  (make-local-variable 'company-backend)
+  (setq company-backend #'reapl-mode_company-backend)
+  (company-manual-begin))
 
 (defun reapl-mode_start-completion-proc ()
   "Start the completion process."
