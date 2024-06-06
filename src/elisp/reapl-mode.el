@@ -31,7 +31,8 @@
 (define-derived-mode reapl-mode
   fennel-mode
   "reapl mode"
-  :keymap reapl-mode-map)
+  :keymap reapl-mode-map
+  (add-to-list 'completion-at-point-functions 'reapl-mode_complete))
 
 ;; connection
 ;; --------------------------------------------
@@ -115,12 +116,35 @@
 
 (defun reapl-mode_on-received-completions (_ msg)
   "Read the completions ( MSG ) sent by reapl server."
-  (setq reapl-mode_completions
-        (append (alist-get 'completions (json-read-from-string msg))
-                nil))
-  (make-local-variable 'company-backend)
-  (setq company-backend #'reapl-mode_company-backend)
-  (company-manual-begin))
+  (setq reapl-mode_completions (json-read-from-string msg)))
+
+(defun reapl-mode_completion-details (item)
+  "Find details about ITEM completion."
+  (let ((type (alist-get (intern item) (alist-get 'types reapl-mode_completions))))
+    (list :type type
+          :kind (cond ((eq type "function") 'function)
+                      ((eq type "table") 'module)
+                      (t 'variable)))))
+
+(defun reapl-mode_complete ()
+  "Completion at point function."
+  (interactive)
+  (reapl-mode_complete-symbol-at-point)
+  (sit-for 0.1)
+  (let ((bounds (bounds-of-thing-at-point 'symbol)))
+    (when reapl-mode_completions
+      (list (car bounds)
+            (cdr bounds)
+            (append (alist-get 'completions reapl-mode_completions)
+                    nil)
+            :annotation-function
+            (lambda (item)
+              (plist-get (reapl-mode_completion-details item)
+                         :type))
+            :company-kind
+            (lambda (item)
+              (plist-get (reapl-mode_completion-details item)
+                         :kind))))))
 
 (defun reapl-mode_start-completion-proc ()
   "Start the completion process."
@@ -135,26 +159,6 @@
          :type 'datagram
          :filter #'reapl-mode_on-received-completions
          :sentinel (lambda (_ _event)))))
-
-(defun reapl-mode_company-backend (command &optional arg &rest ignored)
-  "Reapl mode company backend. COMMAND &optional ARG &rest IGNORED."
-  (interactive (list 'interactive))
-
-  (cl-case command
-    (interactive (company-begin-backend 'reapl-mode_company-backend))
-    (prefix (and (eq major-mode 'reapl-mode) ;; Replace with required mode
-                 (thing-at-point 'symbol)))
-    (candidates
-     (cl-remove-if-not
-      (lambda (c) (string-prefix-p arg c))
-      reapl-mode_completions))))
-
-(defun reapl-mode_company-hook ()
-  "Company hook for reapl-mode."
-  (company-mode 1)
-  (add-to-list 'company-backends 'reapl-mode_company-backend))
-
-(add-hook 'reapl-mode-hook 'reapl-mode_company-hook)
 
 ;; API
 ;; --------------------------------------------
