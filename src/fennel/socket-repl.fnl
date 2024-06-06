@@ -65,8 +65,14 @@
                                          (error-handler udp-eval-out "encode"))))
                         (error-handler udp-eval-out "eval"))
                 complete
-                (xpcall (fn [] (udp-complete-out:send (json.encode {:request complete
-                                                                    :completions (comp complete)} {})))
+                (xpcall (fn [] (udp-complete-out:send (let [completions (comp complete)
+                                                            types (collect [_ v (ipairs completions)]
+                                                                    (let [(ok? ret) (send (.. "(type " v ")"))]
+                                                                      (values v (if ok? (. ret.values 1)
+                                                                                    "unknown"))))]
+                                                        (json.encode {:request complete
+                                                                      : completions
+                                                                      : types} {}))))
                         (error-handler udp-complete-out "encode")))))
       (reaper.defer repl))))
 
