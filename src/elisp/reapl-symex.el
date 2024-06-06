@@ -30,7 +30,7 @@
 (symex-interface-extend
  (list 'reapl-mode)
  (list :eval #'reapl-mode_send-thing-at-point
-       :eval-definition (lambda () (symex-goto-lowest) (pb/reapl-send-thing-at-point))
+       :eval-definition  (lambda () (symex-goto-lowest) (reapl-mode_send-thing-at-point))
        :eval-pretty #'reapl-mode_send-thing-at-point
        :eval-thunk #'reapl-symex_no-op
        :eval-print #'reapl-symex_no-op
