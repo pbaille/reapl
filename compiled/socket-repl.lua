@@ -100,7 +100,7 @@ local function repl_fn()
         end
         xpcall(_8_, error_handler(opts, "eval"))
       elseif (op == "complete") then
-        local function _12_()
+        local function _14_()
           local completions = comp(arg)
           local types
           do
@@ -109,14 +109,19 @@ local function repl_fn()
               local k_15_auto, v_16_auto = nil, nil
               do
                 local _0 = send(("(type " .. v .. ")"))
-                local function _10_()
+                local function _12_()
                   if result then
-                    return result.values[1]
+                    local _10_ = result.values
+                    if (nil ~= _10_) then
+                      return _10_[1]
+                    else
+                      return _10_
+                    end
                   else
                     return "unknown"
                   end
                 end
-                k_15_auto, v_16_auto = v, _10_()
+                k_15_auto, v_16_auto = v, _12_()
               end
               if ((k_15_auto ~= nil) and (v_16_auto ~= nil)) then
                 tbl_14_auto[k_15_auto] = v_16_auto
@@ -127,13 +132,13 @@ local function repl_fn()
           end
           return json.encode({op = op, symbol = arg, completions = completions, types = types}, {})
         end
-        udp_out:send(_12_())
+        udp_out:send(_14_())
       else
         local _ = op
-        local function _13_(_241)
+        local function _15_(_241)
           return (op == _241)
         end
-        if u.seq.find(repl_ops, _13_) then
+        if u.seq.find(repl_ops, _15_) then
           local _0 = send(("," .. op .. " " .. arg .. "\n"))
           udp_out:send(json.encode(u.tbl.merge(opts, {output = (result or {error = {type = "repl:op", message = "op fail..."}})})))
         else
@@ -146,11 +151,11 @@ local function repl_fn()
   end
   return repl
 end
-local function start_repl(_17_)
-  local _arg_18_ = _17_
-  local options = _arg_18_
-  local ports = _arg_18_["ports"]
-  setup_udp()
-  return repl_fn(options)()
+local function start_repl(_19_)
+  local _arg_20_ = _19_
+  local options = _arg_20_
+  local ports = _arg_20_["ports"]
+  setup_udp(options)
+  return repl_fn()()
 end
 return start_repl

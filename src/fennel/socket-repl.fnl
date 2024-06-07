@@ -83,7 +83,7 @@
                                       types (collect [_ v (ipairs completions)]
                                               (let [_ (send (.. "(type " v ")"))]
                                                 (values v (if result
-                                                              (. result.values 1)
+                                                              (-?> result.values (. 1))
                                                               "unknown"))))]
                                   (json.encode {: op
                                                 :symbol arg
@@ -104,5 +104,5 @@
       (reaper.defer repl))))
 
 (fn start-repl [{&as options : ports}]
-  (setup-udp)
-  ((repl-fn options)))
+  (setup-udp options)
+  ((repl-fn)))
