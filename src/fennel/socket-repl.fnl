@@ -21,7 +21,7 @@
                    "\n\nReapl server running !\n")))
 
 (var result nil)
-(var debug nil)
+(var debug true)
 
 (fn dbg [x]
     (if debug
@@ -30,7 +30,7 @@
 (fn wrap-repl [options]
   (var repl-complete nil)
   (fn send []
-    (let [opts (collect [k x (pairs (or options {})) :into {}]
+    (let [opts (collect [k x (pairs (or options {})) :into {:useMetadata true}]
                  (values k x))]
       (fn opts.readChunk [x]
         (dbg [:readChunk x])

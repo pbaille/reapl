@@ -18,8 +18,9 @@ local function setup_udp(_1_)
   assert(udp_out:setpeername("127.0.0.1", output))
   return ru.misc.log(("setting udp sockets:\n" .. "in: localhost:" .. input .. "\nout: localhost:" .. output .. "\n\nReapl server running !\n"))
 end
+pcall(function() require("fennel").metadata:setall(setup_udp, "fnl/arglist", {"{:ports {:input input :output output}}"}) end)
 local result = nil
-local debug = nil
+local debug = true
 local function dbg(x)
   if debug then
     return log(fnl.view(x))
@@ -27,12 +28,13 @@ local function dbg(x)
     return nil
   end
 end
+pcall(function() require("fennel").metadata:setall(dbg, "fnl/arglist", {"x"}) end)
 local function wrap_repl(options)
   local repl_complete = nil
   local function send()
     local opts
     do
-      local tbl_14_auto = {}
+      local tbl_14_auto = {useMetadata = true}
       for k, x in pairs((options or {})) do
         local k_15_auto, v_16_auto = k, x
         if ((k_15_auto ~= nil) and (v_16_auto ~= nil)) then
@@ -46,36 +48,45 @@ local function wrap_repl(options)
       dbg({"readChunk", x})
       return coroutine.yield(x)
     end
+    pcall(function() require("fennel").metadata:setall(opts.readChunk, "fnl/arglist", {"x"}) end)
     opts.onValues = function(x)
       dbg({"onValues", x})
       result = {values = x}
       return nil
     end
+    pcall(function() require("fennel").metadata:setall(opts.onValues, "fnl/arglist", {"x"}) end)
     opts.onError = function(e_type, e, lua_src)
       dbg({"onError", {["e-type"] = e_type, e = e, ["lua-src"] = lua_src}})
       result = {error = {type = e_type, message = e, src = lua_src}}
       return nil
     end
+    pcall(function() require("fennel").metadata:setall(opts.onError, "fnl/arglist", {"e-type", "e", "lua-src"}) end)
     opts.registerCompleter = function(x)
       repl_complete = x
       return nil
     end
+    pcall(function() require("fennel").metadata:setall(opts.registerCompleter, "fnl/arglist", {"x"}) end)
     opts.pp = function(x)
       return x
     end
+    pcall(function() require("fennel").metadata:setall(opts.pp, "fnl/arglist", {"x"}) end)
     opts["error-pinpoint"] = {"\194\171", "\194\187"}
     return fnl.repl(opts)
   end
+  pcall(function() require("fennel").metadata:setall(send, "fnl/arglist", {}) end)
   local repl_send = coroutine.wrap(send)
   repl_send()
   return repl_send, repl_complete, ret
 end
+pcall(function() require("fennel").metadata:setall(wrap_repl, "fnl/arglist", {"options"}) end)
 local function error_handler(command, error_type)
   local function _6_(e)
     return udp_out:send(json.encode(u.tbl.merge(command, {error = {type = error_type, message = e}}), {}))
   end
+  pcall(function() require("fennel").metadata:setall(_6_, "fnl/arglist", {"e"}) end)
   return _6_
 end
+pcall(function() require("fennel").metadata:setall(error_handler, "fnl/arglist", {"command", "error-type"}) end)
 local repl_ops = {"eval", "complete", "doc", "reload", "find", "compile", "apropos", "apropos-doc", "apropos-show-docs"}
 local function repl_fn()
   local send, comp = wrap_repl()
@@ -96,8 +107,10 @@ local function repl_fn()
           local function _9_()
             return udp_out:send(json.encode({op = op, expression = arg, output = result}, {}))
           end
+          pcall(function() require("fennel").metadata:setall(_9_, "fnl/arglist", {}) end)
           return xpcall(_9_, error_handler(opts, "encode"))
         end
+        pcall(function() require("fennel").metadata:setall(_8_, "fnl/arglist", {}) end)
         xpcall(_8_, error_handler(opts, "eval"))
       elseif (op == "complete") then
         local function _14_()
@@ -149,8 +162,10 @@ local function repl_fn()
     end
     return reaper.defer(repl)
   end
+  pcall(function() require("fennel").metadata:setall(repl, "fnl/arglist", {}) end)
   return repl
 end
+pcall(function() require("fennel").metadata:setall(repl_fn, "fnl/arglist", {}) end)
 local function start_repl(_19_)
   local _arg_20_ = _19_
   local options = _arg_20_
@@ -158,4 +173,5 @@ local function start_repl(_19_)
   setup_udp(options)
   return repl_fn()()
 end
+pcall(function() require("fennel").metadata:setall(start_repl, "fnl/arglist", {"{:ports ports &as options}"}) end)
 return start_repl

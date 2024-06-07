@@ -15,5 +15,5 @@ do
 
     # Inserting line '@noindex' at the top of compiled file
     echo "-- @noindex" > $dest
-    fennel --compile $src >> $dest
+    fennel --compile --metadata $src >> $dest
 done
