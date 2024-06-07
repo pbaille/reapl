@@ -14,4 +14,4 @@ package.path = script_path .. "/lib/?.lua" .. ";" .. script_path .. "/compiled/?
 
 local repl = require('socket-repl')
 
-return repl({ socketPort = 9999, completePeerPort = 9996, evalPeerPort = 9997, noConsole = true })
+return repl({ ports = {input= 9999, output= 9997}})

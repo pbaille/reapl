@@ -38,24 +38,25 @@
 ;; --------------------------------------------
 
 (defvar reapl-mode_server-port 9999)
-(defvar reapl-mode_reaper-connection nil)
+(defvar reapl-mode_send-proc nil)
 
 (defun reapl-mode_connect-to-reaper ()
   "Connect to the remote reaper server."
-  (setq reapl-mode_reaper-connection
+  (setq reapl-mode_send-proc
         (make-network-process
          :name "*reapl*"
          :host "localhost"
-         :service 9999
+         :service reapl-mode_server-port
          :type 'datagram
          :family 'ipv4)))
 
 ;; evaluation
 ;; --------------------------------------------
 
-(defvar reapl-mode_evaluation-history nil)
-(defvar reapl-mode_evaluation-port 9997)
-(defvar reapl-mode_evaluation-proc nil)
+(defvar reapl-mode_history nil)
+(defvar reapl-mode_receive-port 9997)
+(defvar reapl-mode_receive-proc nil)
+(defvar reapl-mode_completions (list))
 
 (defun reapl-mode_prettify-json-string (json-str)
   "Prettify the given JSON-STR."
@@ -74,49 +75,73 @@
                      (buffer-string))))
     (insert formatted)))
 
-(defun reapl-mode_on-received-evaluation (_ msg)
-  "Handle the result of reapl evaluation. ( MSG )."
-  (let* ((json-object-type 'alist)
-         (json-alist (json-read-from-string msg))
-         (output (json-encode  (alist-get 'output json-alist)))
-         (buffer (process-buffer reapl-mode_evaluation-proc)))
+(defun reapl-mode_insert-line (buffer)
+  "Insert a line in BUFFER."
+  (let* ((start (point))
+         (end (progn (insert (make-string (window-width (get-buffer-window buffer)) ?\s)) (point)))) ; insert a string of spaces
+    (put-text-property start end 'face `(:underline ,(face-foreground 'font-lock-comment-face)))))
+
+(defun reapl-mode_print-evaluation-result (msg)
+  "Handle the result of an eval operation. MSG is an alist decoded from json."
+  (let ((buffer (process-buffer reapl-mode_receive-proc)))
     (with-current-buffer buffer
       (goto-char (point-max))
       (insert "\n\n")
-      (reapl-mode_insert-with-highlighting 'fennel-mode (alist-get 'expression json-alist "pouet"))
+      ;; insert input expression
+      (reapl-mode_insert-with-highlighting
+       'fennel-mode (alist-get 'expression msg))
       (insert (propertize "\n\n=>\n\n" 'face 'font-lock-comment-face))
-      (reapl-mode_insert-with-highlighting 'json-mode (reapl-mode_prettify-json-string output))
+      ;; insert return
+      (reapl-mode_insert-with-highlighting
+       'json-mode (reapl-mode_prettify-json-string (json-encode (alist-get 'output msg))))
       (insert "\n")
-      (let* ((start (point))
-             (end (progn (insert (make-string (window-width (get-buffer-window buffer)) ?\s)) (point)))) ; insert a string of spaces
-        (put-text-property start end 'face `(:underline ,(face-foreground 'font-lock-comment-face)))))
-    (setq reapl-mode_evaluation-history
-          (cons json-alist reapl-mode_evaluation-history))))
+      ;; insert a line at the end
+      (reapl-mode_insert-line buffer))))
+
+(defun reapl-mode_print-command-result (msg)
+  "Handle the result of a command. MSG is an alist decoded from json."
+  (let* ((buffer (process-buffer reapl-mode_receive-proc)))
+    (with-current-buffer buffer
+      (goto-char (point-max))
+      (insert "\n\n")
+      ;; insert input expression
+      (reapl-mode_insert-with-highlighting
+       'fennel-mode (format "%s" (list 'reapl:cmd (alist-get 'op msg) (alist-get 'arg msg))))
+      (insert (propertize "\n\n=>\n\n" 'face 'font-lock-comment-face))
+      ;; insert return
+      (reapl-mode_insert-with-highlighting
+       'json-mode (reapl-mode_prettify-json-string (json-encode (alist-get 'output msg))))
+      (insert "\n")
+      ;; insert a line at the end
+      (reapl-mode_insert-line buffer))))
+
+(defun reapl-mode_on-receive (_ msg)
+  "Handle the received messages MSG."
+  (let* ((json-object-type 'alist)
+         (json-msg (json-read-from-string msg))
+         (op (alist-get 'op json-msg)))
+    (setq reapl-mode_history
+          (cons json-msg reapl-mode_history))
+    (cond ((string-equal op "eval") (reapl-mode_print-evaluation-result json-msg))
+          ((string-equal op "complete") (setq reapl-mode_completions json-msg))
+          (t (reapl-mode_print-command-result json-msg)))))
 
 (defun reapl-mode_start-evaluation-proc ()
   "Start the completion process."
-  (setq reapl-mode_evaluation-proc
+  (setq reapl-mode_receive-proc
         (make-network-process
          :name "reapl-evaluation-proc"
          :buffer "*reapl-evaluation*"
          :host 'local
-         :service reapl-mode_evaluation-port
+         :service reapl-mode_receive-port
          :server t
          :family 'ipv4
          :type 'datagram
-         :filter #'reapl-mode_on-received-evaluation
+         :filter #'reapl-mode_on-receive
          :sentinel (lambda (_ _event)))))
 
 ;; completions
 ;; --------------------------------------------
-
-(defvar reapl-mode_completions (list))
-(defvar reapl-mode_completion-port 9996)
-(defvar reapl-mode_completion-proc nil)
-
-(defun reapl-mode_on-received-completions (_ msg)
-  "Read the completions ( MSG ) sent by reapl server."
-  (setq reapl-mode_completions (json-read-from-string msg)))
 
 (defun reapl-mode_completion-details (item)
   "Find details about ITEM completion."
@@ -146,37 +171,17 @@
               (plist-get (reapl-mode_completion-details item)
                          :kind))))))
 
-(defun reapl-mode_start-completion-proc ()
-  "Start the completion process."
-  (setq reapl-mode_completion-proc
-        (make-network-process
-         :name "reapl-mode_completion-proc"
-         :buffer "*reapl-completion*"
-         :host 'local
-         :service reapl-mode_completion-port
-         :server t
-         :family 'ipv4
-         :type 'datagram
-         :filter #'reapl-mode_on-received-completions
-         :sentinel (lambda (_ _event)))))
-
 ;; API
 ;; --------------------------------------------
 
 (defun reapl-mode_repl-quit ()
   "Connect to the reaper server."
   (interactive)
-  (when reapl-mode_reaper-connection
-    (let ((buffer (process-buffer reapl-mode_reaper-connection)))
-      (delete-process reapl-mode_reaper-connection)
-      (kill-buffer buffer)))
-  (when reapl-mode_evaluation-proc
-    (let ((buffer (process-buffer reapl-mode_evaluation-proc)))
-      (delete-process reapl-mode_evaluation-proc)
-      (kill-buffer buffer)))
-  (when reapl-mode_completion-proc
-    (let ((buffer (process-buffer reapl-mode_completion-proc)))
-      (delete-process reapl-mode_completion-proc)
+  (when reapl-mode_send-proc
+    (delete-process reapl-mode_send-proc))
+  (when reapl-mode_receive-proc
+    (let ((buffer (process-buffer reapl-mode_receive-proc)))
+      (delete-process reapl-mode_receive-proc)
       (kill-buffer buffer))))
 
 (defun reapl-mode_connect ()
@@ -185,30 +190,39 @@
   (reapl-mode_repl-quit)
   (reapl-mode_connect-to-reaper)
   (reapl-mode_start-evaluation-proc)
-  (reapl-mode_start-completion-proc)
   (display-buffer (get-buffer "*reapl-evaluation*")))
 
 (defun reapl-mode_repl ()
   "Connect to the reaper server."
   (interactive)
-  (when (not reapl-mode_reaper-connection)
+  (when (not reapl-mode_send-proc)
     (reapl-mode_connect-to-reaper))
-  (when (not reapl-mode_evaluation-proc)
+  (when (not reapl-mode_receive-proc)
     (reapl-mode_start-evaluation-proc))
-  (when (not reapl-mode_completion-proc)
-    (reapl-mode_start-completion-proc))
   (display-buffer (get-buffer "*reapl-evaluation*")))
 
+
+(defun reapl-mode_send-message (op arg)
+  "Send the message {op: OP, arg: ARG} to the remote reaper server."
+  (process-send-string reapl-mode_send-proc
+                       (json-encode-plist
+                        (list :op op :arg arg))))
+
 (defun reapl-mode_request-evaluation (s)
-  "Send the strng S to the remote reaper server."
-  (process-send-string reapl-mode_reaper-connection (concat "{\"eval\": \"" s "\"}")))
+  "Request the evaluation of string S to the remote reaper server."
+  (reapl-mode_send-message :eval s))
 
 (defun reapl-mode_request-completion (s)
-  "Send the strng S to the remote reaper server."
-  (process-send-string reapl-mode_reaper-connection (concat "{\"complete\": \"" s "\"}")))
+  "Request the completion of strng S to the remote reaper server."
+  (reapl-mode_send-message :complete s))
+
+(defun reapl-mode_request-documentation (s)
+  "Request the documentation for S to the remote reaper server."
+  (reapl-mode_send-message :doc s))
 
 (defun reapl-mode_thing-at-point ()
-  "Return the thing at point. This can be either a word, symbol, or sexp, in that order of preference."
+  "Return the thing at point.
+This can be either a word, symbol, or sexp, in that order of preference."
   (or (thing-at-point 'word t)
       (thing-at-point 'symbol t)
       (thing-at-point 'sexp t)))
@@ -228,6 +242,12 @@
   (interactive)
   (let ((sym (thing-at-point 'symbol)))
     (when sym (reapl-mode_request-completion sym))))
+
+(defun reapl-mode_doc-symbol-at-point ()
+  "Ask for documentation for the symbol at point to the reaper REPL."
+  (interactive)
+  (let ((sym (thing-at-point 'symbol)))
+    (when sym (reapl-mode_request-documentation sym))))
 
 (provide 'reapl-mode)
 ;;; reapl-mode.el ends here
