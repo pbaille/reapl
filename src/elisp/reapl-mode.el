@@ -98,6 +98,34 @@
       ;; insert a line at the end
       (reapl-mode_insert-line buffer))))
 
+(defun reapl-mode_count-indentation (line)
+  "Count leading spaces in a LINE."
+  (if (string-match "^\\s-+" line)
+      (length (match-string 0 line))
+    0))
+
+(defun reapl-mode_insert-formatted-doc-output (doc-str)
+  "Insert formatted docstring (DOC-STR) into current buffer."
+  (let* ((splitted (split-string doc-str "\n"))
+         (form (car splitted))
+         (lines (cdr splitted))
+         (first-line (car lines))
+         (second-line (cadr lines))
+         (first-indentation (reapl-mode_count-indentation first-line))
+         (second-indentation (reapl-mode_count-indentation second-line))
+         (indent-difference (- second-indentation first-indentation))
+         (trimmed-lines (mapcar (lambda (line)
+                                  (if (not (eq line first-line))
+                                      (if (<= indent-difference (length line))
+                                          (substring line indent-difference)
+                                        line)
+                                    line))
+                                lines))
+         (doc-txt (mapconcat 'identity trimmed-lines "\n")))
+    (reapl-mode_insert-with-highlighting 'fennel-mode form)
+    (insert "\n\n")
+    (insert (propertize doc-txt 'face 'font-lock-function-name-face ))))
+
 (defun reapl-mode_print-command-result (msg)
   "Handle the result of a command. MSG is an alist decoded from json."
   (let* ((buffer (process-buffer reapl-mode_receive-proc)))
@@ -106,11 +134,14 @@
       (insert "\n\n")
       ;; insert input expression
       (reapl-mode_insert-with-highlighting
-       'fennel-mode (format "%s" (list 'reapl:cmd (alist-get 'op msg) (alist-get 'arg msg))))
+       'fennel-mode (format "%s" (concat "," (alist-get 'op msg) " " (alist-get 'arg msg))))
       (insert (propertize "\n\n=>\n\n" 'face 'font-lock-comment-face))
       ;; insert return
-      (reapl-mode_insert-with-highlighting
-       'json-mode (reapl-mode_prettify-json-string (json-encode (alist-get 'output msg))))
+      (cond ((string-equal (alist-get 'op msg) "doc")
+             (let* ((output (alist-get 'output msg)))
+               (reapl-mode_insert-formatted-doc-output (aref (alist-get 'values output) 0))))
+            (t (reapl-mode_insert-with-highlighting
+                'json-mode (reapl-mode_prettify-json-string (json-encode (alist-get 'output msg))))))
       (insert "\n")
       ;; insert a line at the end
       (reapl-mode_insert-line buffer))))
@@ -170,6 +201,13 @@
             (lambda (item)
               (plist-get (reapl-mode_completion-details item)
                          :kind))))))
+
+(defun reapl-mode_request-doc-for-completion-candidate ()
+  "Trigger action A with the current company candidate."
+  (interactive)
+  (when (eq major-mode 'reapl-mode)
+    (let ((candidate (nth company-selection company-candidates)))
+      (reapl-mode_request-documentation candidate))))
 
 ;; API
 ;; --------------------------------------------

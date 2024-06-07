@@ -30,7 +30,9 @@
             "c" #'reapl-mode_complete-symbol-at-point))
 
 (map! (:map reapl-mode-map
-       :i "TAB" #'reapl-mode_complete-symbol-at-point))
+       :i "TAB" #'reapl-mode_complete-symbol-at-point)
+      (:map company-active-map
+            "C-h" #'reapl-mode_request-doc-for-completion-candidate))
 
 (provide 'reapl-bindings)
 ;;; reapl-bindings.el ends here
