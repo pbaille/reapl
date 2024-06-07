@@ -1,12 +1,13 @@
-
 ;; ------------------------------------------------------------
 ;; misc
 
 (fn reload [p]
+  "Reload the given package `p`."
   (tset package.loaded p nil)
   (require p))
 
 (fn fold [x f xs]
+  "Accumulate a result over the sequence `xs`, starting with `x` and applying the function `f`."
   (accumulate [x x _ e (ipairs xs)] (f x e)))
 
 
@@ -14,12 +15,14 @@
 (local path {})
 
 (fn path.pwd []
+  "Get the current working directory."
   (: (io.popen "pwd") :read))
 
 (set path.home "/Users/pierrebaille")
 (set path.user (.. path.home "/Code/Lua"))
 
 (fn path.relative [subpath]
+  "Return the relative path by appending `subpath` to the current working directory."
   (.. (path.pwd) "/" subpath))
 
 
@@ -27,6 +30,7 @@
 (local file {})
 
 (fn file.slurp [path]
+  "Read the contents of the file at `path`."
   (match (io.open path)
     f (let [content (f:read :*all)]
         (f:close)
@@ -34,17 +38,18 @@
     (nil err-msg) (print "Could not open file:" err-msg)))
 
 (lambda file.spit [path content]
+  "Write `content` to the file at `path`."
   (match (io.open path :w)
     f (do (f:write content)
           (f:close))
     (nil err-msg) (print "Could not open file:" err-msg)))
 
 
-
 ;; ------------------------------------------------------------
 (local tbl {})
 
 (fn tbl.matcher [m]
+  "Return a matcher function for the table `m`."
   (case (type m)
     :function m
     :table (fn [t]
@@ -56,26 +61,31 @@
                            :function (vm vt)
                            _ (= vm vt))))))))
 
-(fn tbl.getter
-  [at]
+(fn tbl.getter [at]
+  "Return a getter function for accessing elements in `at`."
   (case (type at)
     :string (fn [this] (?. this at))
-    :table (fn [this] (accumulate [this this _ k (ipairs at)]
-                        (?. this k)))))
+    :table (fn [this]
+             (accumulate [this this _ k (ipairs at)]
+               (?. this k)))))
 
 (fn tbl.match [t m]
+  "Check if table `t` matches the pattern `m`."
   ((tbl.matcher m) t))
 
 (fn tbl.get [t p]
+  "Get the value at path `p` in table `t`."
   ((tbl.getter p) t))
 
 (fn tbl.upd-at [t k u]
+  "Update the key `k` in table `t` with the value `u`."
   (case (type u)
     :function (tset t k (u (. t k)))
     _ (tset t k u))
   t)
 
 (fn tbl.upd [t u]
+  "Update the table `t` with the updates in `u`."
   (case (type u)
     :table (each [k f (pairs u)]
              (tbl.upd-at t k f))
@@ -83,15 +93,18 @@
   t)
 
 (fn tbl.merge [a b]
+  "Merge table `b` into table `a`."
   (each [k v (pairs b)]
     (tset a k v))
   a)
 
 (fn tbl.put [t k v]
+  "Set key `k` in table `t` to value `v`."
   (tset t k v)
   t)
 
 (fn tbl.rem [t k]
+  "Remove key `k` from table `t`."
   (tset t k nil)
   t)
 
@@ -99,12 +112,15 @@
 (local seq {})
 
 (fn seq.first [s]
+  "Get the first element of the sequence `s`."
   (. s 1))
 
 (fn seq.last [s]
+  "Get the last element of the sequence `s`."
   (. s (length s)))
 
 (fn seq.index-of [s v]
+  "Get the index of value `v` in the sequence `s`."
   (var idx nil)
   (each [i x (ipairs s) &until idx]
     (if (= x v)
@@ -112,24 +128,30 @@
   idx)
 
 (fn seq.append [s x]
+  "Append value `x` to the sequence `s`."
   (table.insert s x)
   s)
 
 (fn seq.concat [s xs]
+  "Concatenate sequences `s` and `xs`."
   (each [_ x (ipairs xs)]
     (seq.append s x))
   s)
 
 (fn seq.keep [s f]
+  "Keep elements of sequence `s` that satisfy the function `f`."
   (icollect [_ x (ipairs s)] (f x)))
 
 (fn seq.filter [s f]
+  "Filter elements of sequence `s` using the function `f`."
   (seq.keep s (fn [x] (if (f x) x))))
 
 (fn seq.remove [s f]
+  "Remove elements of sequence `s` that satisfy the function `f`."
   (seq.keep s (fn [x] (if (not (f x)) x))))
 
 (fn seq.find [s f]
+  "Find the first element in sequence `s` that satisfies the function `f`."
   (var found nil)
   (each [_ x (ipairs s) &until found]
     (if (f x)
@@ -137,20 +159,24 @@
   found)
 
 (fn seq.sort [s key-fn compare-fn]
+  "Sort sequence `s` using `key-fn` and `compare-fn`."
   (if (not key-fn) (table.sort s)
       (not compare-fn) (seq.sort-by s key-fn)
       (table.sort s (fn [a b] (compare-fn (key-fn a) (key-fn b)))))
   s)
 
 (fn seq.sort-with [s f]
+  "Sort sequence `s` using the function `f`."
   (table.sort s f)
   s)
 
 (fn seq.sort-by [s key-fn]
+  "Sort sequence `s` by the key function `key-fn`."
   (seq.sort-with s (fn [a b] (< (key-fn a) (key-fn b))))
   s)
 
 (fn seq.reverse-sort-by [s key-fn]
+  "Sort sequence `s` in reverse order by the key function `key-fn`."
   (seq.sort-with s (fn [a b] (> (key-fn a) (key-fn b))))
   s)
 
@@ -159,14 +185,37 @@
 
 (set hof.not #(not $))
 
-(fn hof.k [x] (fn [_] x))
-(fn hof.inc [x] (+ 1 x))
-(fn hof.dec [x] (- 1 x))
-(fn hof.adder [x] (fn [y] (+ x y)))
-(fn hof.gt [x] (fn [y] (> y x)))
-(fn hof.lt [x] (fn [y] (< y x)))
-(fn hof.gte [x] (fn [y] (>= y x)))
-(fn hof.lte [x] (fn [y] (<= y x)))
+(fn hof.k [x]
+  "Return a function that always returns `x`."
+  (fn [_] x))
+
+(fn hof.inc [x]
+  "Increment `x` by 1."
+  (+ 1 x))
+
+(fn hof.dec [x]
+  "Decrement `x` by 1."
+  (- 1 x))
+
+(fn hof.adder [x]
+  "Return a function that adds `x` to its argument."
+  (fn [y] (+ x y)))
+
+(fn hof.gt [x]
+  "Return a function that returns true if its argument is greater than `x`."
+  (fn [y] (> y x)))
+
+(fn hof.lt [x]
+  "Return a function that returns true if its argument is less than `x`."
+  (fn [y] (< y x)))
+
+(fn hof.gte [x]
+  "Return a function that returns true if its argument is greater than or equal to `x`."
+  (fn [y] (>= y x)))
+
+(fn hof.lte [x]
+  "Return a function that returns true if its argument is less than or equal to `x`."
+  (fn [y] (<= y x)))
 
 
 ;; ------------------------------------------------------------
