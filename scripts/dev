@@ -1,0 +1,8 @@
+DIR="src/fennel"
+SCRIPT="scripts/compile-fennel"
+
+fswatch -o "$DIR" | while read -r event
+do
+    echo "Change detected in $DIR, running $SCRIPT"
+    bash "$SCRIPT"
+done
