@@ -286,10 +286,11 @@
 (defun reapl-mode_send-message (op arg &optional extra-props)
   "Send the message {op: OP, arg: ARG} to the remote reaper server.
 EXTRA-PROPS plist could be given to enrich the message."
-  (process-send-string reapl-mode_send-proc
-                       (json-encode-plist
-                        (append (list :op op :arg arg)
-                                extra-props))))
+  (when reapl-mode_send-proc
+    (process-send-string reapl-mode_send-proc
+                         (json-encode-plist
+                          (append (list :op op :arg arg)
+                                  extra-props)))))
 
 (defun reapl-mode_request-evaluation (s)
   "Request the evaluation of string S to the remote reaper server."
