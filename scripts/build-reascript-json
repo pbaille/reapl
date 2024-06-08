@@ -1,0 +1,51 @@
+#!/bin/bash
+
+# Determine the directory of the script
+SCRIPT_DIR="$(dirname "$(readlink -f "$0")")"
+
+# Function to check if a command exists
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+# Ensure Babashka is installed
+if ! command_exists bb; then
+    echo "Babashka is not installed.\nPlease visit:\nhttps://github.com/babashka/babashka?tab=readme-ov-file"
+fi
+
+# Ensure ReaScriptLuaParser is installed
+if ! command_exists reascriptluaparser; then
+    echo "ReaScriptLuaParser is not installed.\nPlease visit:\nhttps://github.com/Claudiohbsantos/reascriptluaparser?tab=readme-ov-file#generating-reaper-api-html"
+fi
+
+fetchOnlineDoc() {
+  # URL of the online HTML file
+  URL="https://www.reaper.fm/sdk/reascript/reascripthelp.html#l"
+
+  # Path to save the file in the same directory as the script
+  ONLINE_DOC="$SCRIPT_DIR/reascript.html"
+
+  # Download the file
+  curl -o "$ONLINE_DOC" "$URL"
+
+}
+
+buildJson() {
+  # turn the html to json
+  reascriptluaparser "$1"
+
+  # run the extension babashka script
+  bb "$SCRIPT_DIR/enrich-reascript-json.clj" "$SCRIPT_DIR/reascript_lua_API.json" "$SCRIPT_DIR/reascript.json"
+
+  rm "$SCRIPT_DIR/reascript_lua_API.json"
+
+  echo "$SCRIPT_DIR/reascript.json successfully created."
+}
+
+if [ "$#" -gt 0 ]; then
+    buildJson "$1"
+else
+    fetchOnlineDoc
+    buildJson "$ONLINE_DOC"
+    rm "$ONLINE_DOC"
+fi
