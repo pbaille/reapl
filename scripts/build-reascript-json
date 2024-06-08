@@ -35,11 +35,14 @@ buildJson() {
   reascriptluaparser "$1"
 
   # run the extension babashka script
-  bb "$SCRIPT_DIR/enrich-reascript-json.clj" "$SCRIPT_DIR/reascript_lua_API.json" "$SCRIPT_DIR/reascript.json"
+  bb "$SCRIPT_DIR/enrich-reascript-json.clj" "$SCRIPT_DIR/reascript_lua_API.json" "$SCRIPT_DIR/reascript-doc.fnl"
+
+  "$SCRIPT_DIR/fennel" -c "$SCRIPT_DIR/reascript-doc.fnl" > "$SCRIPT_DIR/../compiled/reascript-doc.lua"
 
   rm "$SCRIPT_DIR/reascript_lua_API.json"
+  rm "$SCRIPT_DIR/reascript-doc.fnl"
 
-  echo "$SCRIPT_DIR/reascript.json successfully created."
+  echo "reascript-doc.lua successfully compiled."
 }
 
 if [ "$#" -gt 0 ]; then

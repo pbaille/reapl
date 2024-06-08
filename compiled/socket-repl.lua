@@ -4,6 +4,7 @@ local json = require("dkjson")
 local fnl = require("fennel")
 u = require("pb-utils")
 ru = require("reaper-utils")
+__fnl_global__reascript_2ddoc = require("reascript-doc")
 local r = reaper
 local log = ru.misc.log
 local udp = assert(sok.udp())
@@ -153,7 +154,7 @@ local function repl_fn()
         end
         if u.seq.find(repl_ops, _15_) then
           local _0 = send(("," .. op .. " " .. arg .. "\n"))
-          udp_out:send(json.encode(u.tbl.merge(opts, {output = (result or {error = {type = "repl:op", message = "op fail..."}})})))
+          udp_out:send(json.encode(u.tbl.merge(opts, {output = result})))
         else
           udp_out:send(json.encode({error = {type = "unknow-op", message = ("Reapl: '" .. op .. "' not supported.")}}))
         end

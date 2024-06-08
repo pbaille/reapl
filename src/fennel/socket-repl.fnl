@@ -4,6 +4,7 @@
 
 (global u (require :pb-utils))
 (global ru (require :reaper-utils))
+(global reascript-doc (require :reascript-doc))
 
 (local r reaper)
 (local log ru.misc.log)
@@ -95,8 +96,7 @@
                         (udp-out:send
                          (json.encode
                           (u.tbl.merge opts
-                                       {:output (or result
-                                                    {:error {:type "repl:op" :message "op fail..."}})}))))
+                                       {:output result}))))
                       (udp-out:send
                        (json.encode
                         {:error {:type :unknow-op

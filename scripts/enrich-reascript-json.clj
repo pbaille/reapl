@@ -30,9 +30,22 @@
 (defn read-json-file [file]
   (json/parse-string (slurp file) true))
 
-(defn write-json-file [file data]
-  (spit file (json/generate-string data {:pretty true})))
+(defn data->lua [data]
+  (str (str/join "\n"
+                 (concat '[(local fnl (require :fennel))
+                           (fn add-meta [f arglist docstring]
+                             (if f
+                               (fnl.metadata:setall f
+                                                    :fnl/arglist arglist
+                                                    :fnl/docstring docstring)))]
+                         (mapv (fn [spec]
+                                 (list 'add-meta
+                                       (symbol (str "reaper."(:name spec)))
+                                       (mapv :name (:params spec))
+                                       (:description spec)))
+                               data)))
+       "\n{}"))
 
 (let [[input-file output-file] *command-line-args*]
   (let [data (read-json-file input-file)]
-    (write-json-file output-file (mapv extend-function-infos data))))
+    (spit output-file (data->lua data))))
