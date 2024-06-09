@@ -83,9 +83,13 @@
                   (udp-out:send (let [completions (comp arg)
                                       types (collect [_ v (ipairs completions)]
                                               (let [_ (send (.. "(type " v ")"))]
-                                                (values v (if result
-                                                              (-?> result.values (. 1))
-                                                              "unknown"))))]
+                                                (values v (or (-?> result.values (. 1))
+                                                              (let [e (?. result :error :message)]
+                                                                (if (string.find e "tried to reference a special form")
+                                                                    "keyword"
+                                                                    (string.find e "tried to reference a macro")
+                                                                    "macro"
+                                                                    "unknown"))))))]
                                   (json.encode {: op
                                                 :symbol arg
                                                 : completions

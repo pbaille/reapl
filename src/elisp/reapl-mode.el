@@ -79,8 +79,10 @@
 
   (defun reapl-mode_insert-line (buffer)
     "Insert a line in BUFFER."
+    ;; this expression was initially used to compute width
+    '(window-width (get-buffer-window buffer))
     (let* ((start (point))
-           (end (progn (insert (make-string (window-width (get-buffer-window buffer)) ?\s)) (point)))) ; insert a string of spaces
+           (end (progn (insert (make-string 80 ?\s)) (point)))) ; insert a string of spaces
       (put-text-property start end 'face `(:underline ,(face-foreground 'font-lock-comment-face)))))
 
   (defun reapl-mode_count-indentation (line)
@@ -220,7 +222,7 @@
     (list :type type
           :kind (cond ((eq type "function") 'function)
                       ((eq type "table") 'module)
-                      (t 'variable)))))
+                      (t (or type 'variable))))))
 
 (defun reapl-mode_complete ()
   "Completion at point function."

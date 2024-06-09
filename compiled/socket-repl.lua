@@ -114,7 +114,7 @@ local function repl_fn()
         pcall(function() require("fennel").metadata:setall(_8_, "fnl/arglist", {}) end)
         xpcall(_8_, error_handler(opts, "eval"))
       elseif (op == "complete") then
-        local function _14_()
+        local function _19_()
           local completions = comp(arg)
           local types
           do
@@ -123,19 +123,38 @@ local function repl_fn()
               local k_15_auto, v_16_auto = nil, nil
               do
                 local _0 = send(("(type " .. v .. ")"))
-                local function _12_()
-                  if result then
-                    local _10_ = result.values
-                    if (nil ~= _10_) then
-                      return _10_[1]
+                local function _10_(...)
+                  local _11_ = result.values
+                  if (nil ~= _11_) then
+                    return _11_[1]
+                  else
+                    return _11_
+                  end
+                end
+                pcall(function() require("fennel").metadata:setall(_10_, "fnl/arglist", {"..."}) end)
+                local function _16_()
+                  local e
+                  do
+                    local t_13_ = result
+                    if (nil ~= t_13_) then
+                      t_13_ = t_13_.error
                     else
-                      return _10_
                     end
+                    if (nil ~= t_13_) then
+                      t_13_ = t_13_.message
+                    else
+                    end
+                    e = t_13_
+                  end
+                  if string.find(e, "tried to reference a special form") then
+                    return "keyword"
+                  elseif string.find(e, "tried to reference a macro") then
+                    return "macro"
                   else
                     return "unknown"
                   end
                 end
-                k_15_auto, v_16_auto = v, _12_()
+                k_15_auto, v_16_auto = v, (_10_() or _16_())
               end
               if ((k_15_auto ~= nil) and (v_16_auto ~= nil)) then
                 tbl_14_auto[k_15_auto] = v_16_auto
@@ -146,13 +165,13 @@ local function repl_fn()
           end
           return json.encode({op = op, symbol = arg, completions = completions, types = types}, {})
         end
-        udp_out:send(_14_())
+        udp_out:send(_19_())
       else
         local _ = op
-        local function _15_(_241)
+        local function _20_(_241)
           return (op == _241)
         end
-        if u.seq.find(repl_ops, _15_) then
+        if u.seq.find(repl_ops, _20_) then
           local _0 = send(("," .. op .. " " .. arg .. "\n"))
           udp_out:send(json.encode(u.tbl.merge(opts, {output = result})))
         else
@@ -167,10 +186,10 @@ local function repl_fn()
   return repl
 end
 pcall(function() require("fennel").metadata:setall(repl_fn, "fnl/arglist", {}) end)
-local function start_repl(_19_)
-  local _arg_20_ = _19_
-  local options = _arg_20_
-  local ports = _arg_20_["ports"]
+local function start_repl(_24_)
+  local _arg_25_ = _24_
+  local options = _arg_25_
+  local ports = _arg_25_["ports"]
   setup_udp(options)
   return repl_fn()()
 end
