@@ -30,6 +30,24 @@
 (defn read-json-file [file]
   (json/parse-string (slurp file) true))
 
+(defn auto-line-breaks [input-string max-width]
+  "Split INPUT-STRING into substrings each having at most MAX-WIDTH characters,
+  ensuring that words are not split, and taking existing line breaks into account."
+  (when (string? input-string)
+    (let [lines (str/split input-string #"(?<=\. )|[\n]")]
+      (->> lines
+           (mapcat (fn [line]
+                     (loop [words (str/split line #" ") current-line "" result []]
+                       (if-let [[word & words] (seq words)]
+                         (let [proposed-line (if (empty? current-line)
+                                               word
+                                               (str current-line " " word))]
+                           (if (<= (count proposed-line) max-width)
+                             (recur words proposed-line result)
+                             (recur words word (conj result current-line))))
+                         (conj result current-line)))))
+           (str/join "\n")))))
+
 (defn data->lua [data]
   (str (str/join "\n"
                  (concat '[(local fnl (require :fennel))
@@ -42,7 +60,7 @@
                                  (list 'add-meta
                                        (symbol (str "reaper."(:name spec)))
                                        (mapv :name (:params spec))
-                                       (:description spec)))
+                                       (auto-line-breaks (:description spec) 80)))
                                data)))
        "\n{}"))
 

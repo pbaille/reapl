@@ -190,7 +190,12 @@
            (setq reapl-mode_documentation
                  (reapl-mode_formatted-doc (reapl-mode_output-first-value json-msg)))
            (when (not silent) (reapl-mode_print-command-result json-msg)))
-          ((not silent) (reapl-mode_print-command-result json-msg)))))
+          ((not silent) (reapl-mode_print-command-result json-msg)))
+    (if-let* ((buf (process-buffer reapl-mode_receive-proc))
+              (win (get-buffer-window buf)))
+      (with-selected-window win
+        (goto-char (point-max))
+        (recenter -1)))))
 
 (defun reapl-mode_start-evaluation-proc ()
   "Start the completion process."
