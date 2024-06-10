@@ -1,19 +1,22 @@
 #!/bin/bash
 
-src_dir="./src/fennel"
+src_dirs=("./src/fennel" "./lib/fennel")
 dest_dir="./compiled"
 
 # Ensure the destination directory exists
 mkdir -p $dest_dir
 
-# Compile each .fnl file
-for src in $src_dir/*.fnl
+# Compile each .fnl file in each source directory
+for src_dir in "${src_dirs[@]}"
 do
-    filename=$(basename -- "$src")
-    base="${filename%.*}"
-    dest="$dest_dir/$base.lua"
+    for src in $src_dir/*.fnl
+    do
+        filename=$(basename -- "$src")
+        base="${filename%.*}"
+        dest="$dest_dir/$base.lua"
 
-    # Inserting line '@noindex' at the top of compiled file
-    echo "-- @noindex" > $dest
-    fennel --compile --metadata $src >> $dest
+        # Inserting line '@noindex' at the top of compiled file
+        echo "-- @noindex" > $dest
+        fennel --compile --metadata $src >> $dest
+    done
 done

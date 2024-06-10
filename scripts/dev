@@ -1,8 +1,10 @@
-DIR="src/fennel"
+#!/bin/bash
+
+DIRS=("src/fennel" "lib/fennel")
 SCRIPT="scripts/compile-fennel"
 
-fswatch -o "$DIR" | while read -r event
+fswatch -o "${DIRS[@]}" | while read -r event
 do
-    echo "Change detected in $DIR, running $SCRIPT"
+    echo "Change detected in one of the dirs, running $SCRIPT"
     bash "$SCRIPT"
 done
