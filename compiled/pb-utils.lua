@@ -177,6 +177,50 @@ tbl.rem = function(t, k)
   return t
 end
 pcall(function() require("fennel").metadata:setall(tbl.rem, "fnl/arglist", {"t", "k"}, "fnl/docstring", "Remove key `k` from table `t`.") end)
+tbl.keys = function(t)
+  local tbl_19_auto = {}
+  local i_20_auto = 0
+  for k, _ in pairs(t) do
+    local val_21_auto = k
+    if (nil ~= val_21_auto) then
+      i_20_auto = (i_20_auto + 1)
+      do end (tbl_19_auto)[i_20_auto] = val_21_auto
+    else
+    end
+  end
+  return tbl_19_auto
+end
+pcall(function() require("fennel").metadata:setall(tbl.keys, "fnl/arglist", {"t"}) end)
+tbl.vals = function(t)
+  local tbl_19_auto = {}
+  local i_20_auto = 0
+  for _, v in pairs(t) do
+    local val_21_auto = v
+    if (nil ~= val_21_auto) then
+      i_20_auto = (i_20_auto + 1)
+      do end (tbl_19_auto)[i_20_auto] = val_21_auto
+    else
+    end
+  end
+  return tbl_19_auto
+end
+pcall(function() require("fennel").metadata:setall(tbl.vals, "fnl/arglist", {"t"}) end)
+tbl["="] = function(t1, t2)
+  if not (#t1 == #t2) then
+    return false
+  else
+    local equal = true
+    for k, v1 in pairs(t1) do
+      local v2 = t2[k]
+      if ((("table" == type(v1)) and not __fnl_global__table_2dequal(v1, v2)) or not (v1 == v2)) then
+        equal = false
+      else
+      end
+    end
+    return equal
+  end
+end
+pcall(function() require("fennel").metadata:setall(tbl["="], "fnl/arglist", {"t1", "t2"}) end)
 local seq = {}
 seq.first = function(s)
   return s[1]
@@ -225,27 +269,27 @@ seq.keep = function(s, f)
 end
 pcall(function() require("fennel").metadata:setall(seq.keep, "fnl/arglist", {"s", "f"}, "fnl/docstring", "Keep elements of sequence `s` that satisfy the function `f`.") end)
 seq.filter = function(s, f)
-  local function _29_(x)
+  local function _33_(x)
     if f(x) then
       return x
     else
       return nil
     end
   end
-  pcall(function() require("fennel").metadata:setall(_29_, "fnl/arglist", {"x"}) end)
-  return seq.keep(s, _29_)
+  pcall(function() require("fennel").metadata:setall(_33_, "fnl/arglist", {"x"}) end)
+  return seq.keep(s, _33_)
 end
 pcall(function() require("fennel").metadata:setall(seq.filter, "fnl/arglist", {"s", "f"}, "fnl/docstring", "Filter elements of sequence `s` using the function `f`.") end)
 seq.remove = function(s, f)
-  local function _31_(x)
+  local function _35_(x)
     if not f(x) then
       return x
     else
       return nil
     end
   end
-  pcall(function() require("fennel").metadata:setall(_31_, "fnl/arglist", {"x"}) end)
-  return seq.keep(s, _31_)
+  pcall(function() require("fennel").metadata:setall(_35_, "fnl/arglist", {"x"}) end)
+  return seq.keep(s, _35_)
 end
 pcall(function() require("fennel").metadata:setall(seq.remove, "fnl/arglist", {"s", "f"}, "fnl/docstring", "Remove elements of sequence `s` that satisfy the function `f`.") end)
 seq.find = function(s, f)
@@ -266,11 +310,11 @@ seq.sort = function(s, key_fn, compare_fn)
   elseif not compare_fn then
     seq["sort-by"](s, key_fn)
   else
-    local function _34_(a, b)
+    local function _38_(a, b)
       return compare_fn(key_fn(a), key_fn(b))
     end
-    pcall(function() require("fennel").metadata:setall(_34_, "fnl/arglist", {"a", "b"}) end)
-    table.sort(s, _34_)
+    pcall(function() require("fennel").metadata:setall(_38_, "fnl/arglist", {"a", "b"}) end)
+    table.sort(s, _38_)
   end
   return s
 end
@@ -281,34 +325,34 @@ seq["sort-with"] = function(s, f)
 end
 pcall(function() require("fennel").metadata:setall(seq["sort-with"], "fnl/arglist", {"s", "f"}, "fnl/docstring", "Sort sequence `s` using the function `f`.") end)
 seq["sort-by"] = function(s, key_fn)
-  local function _36_(a, b)
+  local function _40_(a, b)
     return (key_fn(a) < key_fn(b))
   end
-  pcall(function() require("fennel").metadata:setall(_36_, "fnl/arglist", {"a", "b"}) end)
-  seq["sort-with"](s, _36_)
+  pcall(function() require("fennel").metadata:setall(_40_, "fnl/arglist", {"a", "b"}) end)
+  seq["sort-with"](s, _40_)
   return s
 end
 pcall(function() require("fennel").metadata:setall(seq["sort-by"], "fnl/arglist", {"s", "key-fn"}, "fnl/docstring", "Sort sequence `s` by the key function `key-fn`.") end)
 seq["reverse-sort-by"] = function(s, key_fn)
-  local function _37_(a, b)
+  local function _41_(a, b)
     return (key_fn(a) > key_fn(b))
   end
-  pcall(function() require("fennel").metadata:setall(_37_, "fnl/arglist", {"a", "b"}) end)
-  seq["sort-with"](s, _37_)
+  pcall(function() require("fennel").metadata:setall(_41_, "fnl/arglist", {"a", "b"}) end)
+  seq["sort-with"](s, _41_)
   return s
 end
 pcall(function() require("fennel").metadata:setall(seq["reverse-sort-by"], "fnl/arglist", {"s", "key-fn"}, "fnl/docstring", "Sort sequence `s` in reverse order by the key function `key-fn`.") end)
 local hof = {}
-local function _38_(_241)
+local function _42_(_241)
   return not _241
 end
-hof["not"] = _38_
+hof["not"] = _42_
 hof.k = function(x)
-  local function _39_(_)
+  local function _43_(_)
     return x
   end
-  pcall(function() require("fennel").metadata:setall(_39_, "fnl/arglist", {"_"}) end)
-  return _39_
+  pcall(function() require("fennel").metadata:setall(_43_, "fnl/arglist", {"_"}) end)
+  return _43_
 end
 pcall(function() require("fennel").metadata:setall(hof.k, "fnl/arglist", {"x"}, "fnl/docstring", "Return a function that always returns `x`.") end)
 hof.inc = function(x)
@@ -320,43 +364,43 @@ hof.dec = function(x)
 end
 pcall(function() require("fennel").metadata:setall(hof.dec, "fnl/arglist", {"x"}, "fnl/docstring", "Decrement `x` by 1.") end)
 hof.adder = function(x)
-  local function _40_(y)
-    return (x + y)
-  end
-  pcall(function() require("fennel").metadata:setall(_40_, "fnl/arglist", {"y"}) end)
-  return _40_
-end
-pcall(function() require("fennel").metadata:setall(hof.adder, "fnl/arglist", {"x"}, "fnl/docstring", "Return a function that adds `x` to its argument.") end)
-hof.gt = function(x)
-  local function _41_(y)
-    return (y > x)
-  end
-  pcall(function() require("fennel").metadata:setall(_41_, "fnl/arglist", {"y"}) end)
-  return _41_
-end
-pcall(function() require("fennel").metadata:setall(hof.gt, "fnl/arglist", {"x"}, "fnl/docstring", "Return a function that returns true if its argument is greater than `x`.") end)
-hof.lt = function(x)
-  local function _42_(y)
-    return (y < x)
-  end
-  pcall(function() require("fennel").metadata:setall(_42_, "fnl/arglist", {"y"}) end)
-  return _42_
-end
-pcall(function() require("fennel").metadata:setall(hof.lt, "fnl/arglist", {"x"}, "fnl/docstring", "Return a function that returns true if its argument is less than `x`.") end)
-hof.gte = function(x)
-  local function _43_(y)
-    return (y >= x)
-  end
-  pcall(function() require("fennel").metadata:setall(_43_, "fnl/arglist", {"y"}) end)
-  return _43_
-end
-pcall(function() require("fennel").metadata:setall(hof.gte, "fnl/arglist", {"x"}, "fnl/docstring", "Return a function that returns true if its argument is greater than or equal to `x`.") end)
-hof.lte = function(x)
   local function _44_(y)
-    return (y <= x)
+    return (x + y)
   end
   pcall(function() require("fennel").metadata:setall(_44_, "fnl/arglist", {"y"}) end)
   return _44_
+end
+pcall(function() require("fennel").metadata:setall(hof.adder, "fnl/arglist", {"x"}, "fnl/docstring", "Return a function that adds `x` to its argument.") end)
+hof.gt = function(x)
+  local function _45_(y)
+    return (y > x)
+  end
+  pcall(function() require("fennel").metadata:setall(_45_, "fnl/arglist", {"y"}) end)
+  return _45_
+end
+pcall(function() require("fennel").metadata:setall(hof.gt, "fnl/arglist", {"x"}, "fnl/docstring", "Return a function that returns true if its argument is greater than `x`.") end)
+hof.lt = function(x)
+  local function _46_(y)
+    return (y < x)
+  end
+  pcall(function() require("fennel").metadata:setall(_46_, "fnl/arglist", {"y"}) end)
+  return _46_
+end
+pcall(function() require("fennel").metadata:setall(hof.lt, "fnl/arglist", {"x"}, "fnl/docstring", "Return a function that returns true if its argument is less than `x`.") end)
+hof.gte = function(x)
+  local function _47_(y)
+    return (y >= x)
+  end
+  pcall(function() require("fennel").metadata:setall(_47_, "fnl/arglist", {"y"}) end)
+  return _47_
+end
+pcall(function() require("fennel").metadata:setall(hof.gte, "fnl/arglist", {"x"}, "fnl/docstring", "Return a function that returns true if its argument is greater than or equal to `x`.") end)
+hof.lte = function(x)
+  local function _48_(y)
+    return (y <= x)
+  end
+  pcall(function() require("fennel").metadata:setall(_48_, "fnl/arglist", {"y"}) end)
+  return _48_
 end
 pcall(function() require("fennel").metadata:setall(hof.lte, "fnl/arglist", {"x"}, "fnl/docstring", "Return a function that returns true if its argument is less than or equal to `x`.") end)
 return {path = path, file = file, tbl = tbl, hof = hof, reload = reload, fold = fold, seq = seq}

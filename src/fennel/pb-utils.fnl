@@ -108,6 +108,25 @@
   (tset t k nil)
   t)
 
+(fn tbl.keys [t]
+  (icollect [k _ (pairs t)]
+    k))
+
+(fn tbl.vals [t]
+  (icollect [_ v (pairs t)]
+    v))
+
+(fn tbl.= [t1 t2]
+  (if (not (= (length t1) (length t2)))
+      false
+      (do (var equal true)
+          (each [k v1 (pairs t1)]
+            (let [v2 (. t2 k)]
+              (if (or (and (= :table (type v1)) (not (table-equal v1 v2)))
+                      (not (= v1 v2)))
+                  (set equal false))))
+          equal)))
+
 ;; ------------------------------------------------------------
 (local seq {})
 
@@ -248,6 +267,12 @@
          [:tbl-tries
           (local m (table-matcher {:a 1
                                    :b (fn [x] (= :boolean (type x)))}))
+
+          (tbl.= [:a :b] (tbl.keys {:a 1 :b 3}))
+          (tbl.= [1 3] (tbl.vals {:a 1 :b 3}))
+
+          (tbl.= {:a 1 :b 2}
+                 {:a 1 :b 2})
 
           (tbl.upd {:a 1} {:a (hof.adder 3)})
           (tbl.upd {:a 1 :b 2}
