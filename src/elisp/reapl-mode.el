@@ -341,5 +341,7 @@ This can be either a word, symbol, or sexp, in that order of preference."
   (let ((sym (thing-at-point 'symbol)))
     (when sym (reapl-mode_request-documentation sym))))
 
+(add-to-list 'auto-mode-alist '("\\.reapl\\'" . reapl-mode))
+
 (provide 'reapl-mode)
 ;;; reapl-mode.el ends here
