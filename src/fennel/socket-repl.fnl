@@ -1,13 +1,20 @@
 (local sok (require :reaper-socket))
 (local json (require :dkjson))
-(local fnl (require :fennel))
 
+(global fennel (require :fennel))
 (global u (require :pb-utils))
 (global ru (require :reaper-utils))
 (global reascript-doc (require :reascript-doc))
+(global r reaper)
 
-(local r reaper)
-(local log ru.misc.log)
+(fn dbg [...]
+    (if debug
+        (each [_ x (ipairs [...])]
+          (ru.misc.log (if (= :string (type x))
+                           x
+                           (fennel.view x))))))
+
+(var debug true)
 
 (local udp (assert (sok.udp)))
 (local udp-out (assert (sok.udp)))
@@ -21,36 +28,6 @@
                    "\nout: localhost:" output
                    "\n\nReapl server running !\n")))
 
-(var result nil)
-(var debug true)
-
-(fn dbg [x]
-    (if debug
-        (log (fnl.view x))))
-
-(fn wrap-repl [options]
-  (var repl-complete nil)
-  (fn send []
-    (let [opts (collect [k x (pairs (or options {})) :into {:useMetadata true}]
-                 (values k x))]
-      (fn opts.readChunk [x]
-        (dbg [:readChunk x])
-        (coroutine.yield x))
-      (fn opts.onValues [x]
-        (dbg [:onValues x])
-        (set result {:values x}))
-      (fn opts.onError [e-type e lua-src]
-        (dbg [:onError {: e-type : e : lua-src}])
-        (set result {:error {:type e-type :message e :src lua-src}}))
-      (fn opts.registerCompleter [x]
-        (set repl-complete x))
-      (fn opts.pp [x] x)
-      (set opts.error-pinpoint ["«" "»"])
-      (fnl.repl opts)))
-  (let [repl-send (coroutine.wrap send)]
-    (repl-send)
-    (values repl-send repl-complete ret)))
-
 (fn error-handler [command error-type]
   (fn [e]
     (udp-out:send
@@ -60,51 +37,53 @@
        [:eval :complete :doc :reload :find :compile :apropos :apropos-doc :apropos-show-docs])
 
 (fn repl-fn []
-  (let [(send comp) (wrap-repl)]
+  (let [{: complete : eval &as ops} (require :simple-repl)]
     (fn repl []
       (udp:settimeout 0.0001)
       (local m (udp:receive))
       (if m
-          (do (set result nil)
-              (dbg [:input m])
+          (do (dbg [:input m])
               (let [{&as opts : op : arg} (json.decode m)]
 
                 (case op
 
                   :eval
-                  (xpcall (fn [] (let [_ (send arg)]
-                                   (dbg [:eval result])
+                  (xpcall (fn [] (let [output (eval arg)]
+                                   (dbg [:eval output])
                                    (xpcall (fn []
-                                             (udp-out:send (json.encode {: op :expression arg :output result} {})))
+                                             (udp-out:send (json.encode {: op :expression arg : output} {})))
                                            (error-handler opts "encode"))))
                           (error-handler opts "eval"))
 
                   :complete
-                  (udp-out:send (let [completions (comp arg)
+                  (udp-out:send (let [completions (complete arg)
                                       types (collect [_ v (ipairs completions)]
-                                              (let [_ (send (.. "(type " v ")"))]
-                                                (values v (or (-?> result.values (. 1))
+                                              (let [result (eval (.. "(type " v ")"))]
+                                                (values v (or result.value
                                                               (let [e (?. result :error :message)]
-                                                                (if (string.find e "tried to reference a special form")
-                                                                    "keyword"
-                                                                    (string.find e "tried to reference a macro")
-                                                                    "macro"
-                                                                    "unknown"))))))]
+                                                                (and e
+                                                                     (if (string.find e "tried to reference a special form")
+                                                                         "keyword"
+                                                                         (string.find e "tried to reference a macro")
+                                                                         "macro"
+                                                                         "unknown")))))))]
                                   (json.encode {: op
                                                 :symbol arg
                                                 : completions
                                                 : types} {})))
                   _
-                  (if (u.seq.find repl-ops #(= op $))
-                      (let [_ (send (.. "," op " " arg "\n"))]
+                  (if (?. ops op)
+                      (let [output ((. ops op) arg)]
+                        (dbg [:op op :output output])
                         (udp-out:send
                          (json.encode
                           (u.tbl.merge opts
-                                       {:output result}))))
-                      (udp-out:send
-                       (json.encode
-                        {:error {:type :unknow-op
-                                 :message (.. "Reapl: '" op "' not supported.")}})))))))
+                                       {: output}))))
+                      (do (dbg "unknown op")
+                          (udp-out:send
+                           (json.encode
+                            {:error {:type :unknow-op
+                                     :message (.. "Reapl: '" op "' not supported.")}}))))))))
       (reaper.defer repl))))
 
 (fn start-repl [{&as options : ports}]

@@ -139,9 +139,10 @@
 
   (defun reapl-mode_output-first-value (msg)
     "Extract the first value from the reapl server response message."
-    (if-let* ((output (alist-get 'output msg))
-              (values (alist-get 'values output)))
-        (aref values 0)))
+    (let ((output (alist-get 'output msg)))
+      (if-let* ((values (alist-get 'values output)))
+          (aref values 0)
+        (alit-get 'value output))))
 
   (defun reapl-mode_insert-json-output (msg)
     "Insert the output value of the reapl server response (MSG) as highlighted JSON."
@@ -173,7 +174,7 @@
         ;; insert return
         (cond ((string-equal (alist-get 'op msg) "doc")
                (reapl-mode_insert-formatted-doc-output (reapl-mode_output-first-value msg)))
-              (t (reapl-mode_inser-json-output msg)))
+              (t (reapl-mode_insert-json-output msg)))
         (insert "\n")
         ;; insert a line at the end
         (reapl-mode_insert-line buffer)))))
@@ -315,8 +316,7 @@ the SILENT optional arg is staying that the result should not be printed."
 (defun reapl-mode_thing-at-point ()
   "Return the thing at point.
 This can be either a word, symbol, or sexp, in that order of preference."
-  (or (thing-at-point 'word t)
-      (thing-at-point 'symbol t)
+  (or (thing-at-point 'symbol t)
       (thing-at-point 'sexp t)))
 
 (defun reapl-mode_send-thing-at-point ()
