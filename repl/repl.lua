@@ -1,11 +1,10 @@
 -- @description A fennel repl for reaper
--- @version 0.0.10
+-- @version 0.0.11
 -- @author pbaille
 -- @about
 --   # Fennel repl
 --   TODO
 -- @provides
---    [main] pbaille_start reapl console.lua
 --    [main] pbaille_start reapl server.lua
 --    [nomain] ../lib/*.lua
 --    [nomain] ../compiled/*.lua

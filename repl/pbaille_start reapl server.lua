@@ -12,6 +12,6 @@ local script_path = info.source:match("^@?(.+)/[^/]+/[^/]+$")
 package.cpath = script_path .. "/lib/socket module/?."..extension .. ";" .. package.cpath
 package.path = script_path .. "/lib/?.lua" .. ";" .. script_path .. "/compiled/?.lua" .. ";" .. package.path
 
-local repl = require('socket-repl')
+local reapl = require('reapl')
 
-return repl({ ports = {input= 9999, output= 9997}})
+return reapl({ ports = {input= 9999, output= 9997}})
