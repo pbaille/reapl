@@ -79,7 +79,7 @@
                                  (resolve name env scope)))]
     (if ok?
         {:value (specials.doc target name)}
-        {:error {:type :Repl
+        {:error {:type :repl
                  :message (.. "Could not find " name " for docs.")}})))
 
 (fn repl []
@@ -104,7 +104,8 @@
                      (true src) (let [src (splice-save-locals env src opts.scope)
                                       (ok? f) (pcall specials.load-code src env)]
                                   (if ok?
-                                      {:value (f)}
+                                      (let [value (f)]
+                                        {: value :value-str (view value)})
                                       {:error {:type :load :message f}}))
                      (catch
                       (false msg) {:error {:type :compile :message msg}})))))}))

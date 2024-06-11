@@ -40,7 +40,7 @@ end
 pcall(function() require("fennel").metadata:setall(setup_udp, "fnl/arglist", {"{:ports {:input input :output output}}"}) end)
 local function error_handler(command, error_type)
   local function _6_(e)
-    return udp_out:send(json.encode(u.tbl.merge(command, {error = {type = error_type, message = e}}), {}))
+    return udp_out:send(json.encode(u.tbl.merge(command, {output = {error = {type = error_type, message = e}}}), {}))
   end
   pcall(function() require("fennel").metadata:setall(_6_, "fnl/arglist", {"e"}) end)
   return _6_
@@ -66,7 +66,7 @@ local function repl_fn()
           local output = eval(arg)
           dbg({"eval", output})
           local function _10_()
-            return udp_out:send(json.encode({op = op, expression = arg, output = output}, {}))
+            return udp_out:send(json.encode({op = op, arg = arg, output = output}, {}))
           end
           pcall(function() require("fennel").metadata:setall(_10_, "fnl/arglist", {}) end)
           return xpcall(_10_, error_handler(opts, "encode"))

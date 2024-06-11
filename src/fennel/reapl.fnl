@@ -31,7 +31,7 @@
 (fn error-handler [command error-type]
   (fn [e]
     (udp-out:send
-     (json.encode (u.tbl.merge command {:error {:type error-type :message e}}) {}))))
+     (json.encode (u.tbl.merge command {:output {:error {:type error-type :message e}}}) {}))))
 
 (local repl-ops
        [:eval :complete :doc :reload :find :compile :apropos :apropos-doc :apropos-show-docs])
@@ -51,7 +51,7 @@
                   (xpcall (fn [] (let [output (eval arg)]
                                    (dbg [:eval output])
                                    (xpcall (fn []
-                                             (udp-out:send (json.encode {: op :expression arg : output} {})))
+                                             (udp-out:send (json.encode {: op : arg : output} {})))
                                            (error-handler opts "encode"))))
                           (error-handler opts "eval"))
 

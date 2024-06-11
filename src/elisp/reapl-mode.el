@@ -108,11 +108,22 @@
         (insert "\n\n")
         ;; insert input expression
         (insert (reapl-mode_highlight-str
-                 'fennel-mode (alist-get 'expression msg)))
+                 'fennel-mode (alist-get 'arg msg)))
         (insert (propertize "\n\n=>\n\n" 'face 'font-lock-comment-face))
         ;; insert return
-        (insert (reapl-mode_highlight-str
-                 'json-mode (reapl-mode_prettify-json-string (json-encode (alist-get 'output msg)))))
+        (let* ((output (alist-get 'output msg))
+               (err (alist-get 'error output))
+               (value-str (alist-get 'value-str output))
+               (value (alist-get 'value output)))
+          (cond (err
+                 (insert (propertize (concat (alist-get 'type err) " error:\n\n"
+                                             (alist-get 'message err))
+                                     'face 'font-lock-warning-face)))
+                (value-str
+                 (insert (reapl-mode_highlight-str 'reapl-mode value-str)))
+                (value
+                 (insert (reapl-mode_highlight-str
+                          'json-mode (reapl-mode_prettify-json-string (json-encode value)))))))
         (insert "\n")
         ;; insert a line at the end
         (reapl-mode_insert-line buffer))))
@@ -142,7 +153,7 @@
     (let ((output (alist-get 'output msg)))
       (if-let* ((values (alist-get 'values output)))
           (aref values 0)
-        (alit-get 'value output))))
+        (alist-get 'value output))))
 
   (defun reapl-mode_insert-json-output (msg)
     "Insert the output value of the reapl server response (MSG) as highlighted JSON."

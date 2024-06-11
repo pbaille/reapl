@@ -191,7 +191,7 @@ local function doc(env, scope, name)
   if ok_3f then
     return {value = specials.doc(target, name)}
   else
-    return {error = {type = "Repl", message = ("Could not find " .. name .. " for docs.")}}
+    return {error = {type = "repl", message = ("Could not find " .. name .. " for docs.")}}
   end
 end
 pcall(function() require("fennel").metadata:setall(doc, "fnl/arglist", {"env", "scope", "name"}) end)
@@ -251,7 +251,8 @@ local function repl()
           local src0 = splice_save_locals(env, src, opts.scope)
           local ok_3f, f = pcall(specials["load-code"], src0, env)
           if ok_3f then
-            return {value = f()}
+            local value = f()
+            return {value = value, ["value-str"] = view(value)}
           else
             return {error = {type = "load", message = f}}
           end
