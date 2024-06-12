@@ -4,7 +4,7 @@
 (local specials (require :fennel.specials))
 (local view (require :fennel.view))
 
-(fn completer [env scope text]
+(fn complete [{&as opts : env : scope} text]
   (let [max-items 2000 ; to stop explosion on too mny items
         seen {}
         matches []
@@ -49,7 +49,7 @@
       (add-matches input-fragment source))
     matches))
 
-(fn splice-save-locals [env lua-source scope]
+(fn splice-save-locals [{: env : scope} lua-source]
   (let [saves (icollect [name (pairs env.___replLocals___)]
                 (: "local %s = ___replLocals___[%q]"
                  :format (or (. scope.manglings name) name) name))
@@ -63,8 +63,8 @@
           (body return) (.. body gap (table.concat binds " ") gap return)
           _ lua-source))))
 
-(fn resolve [identifier {: ___replLocals___ &as env} scope]
-  (let [e (setmetatable {} {:__index #(or (. ___replLocals___
+(fn resolve [{: env : scope} identifier]
+  (let [e (setmetatable {} {:__index #(or (. env.___replLocals___
                                              (. scope.unmanglings $2))
                                           (. env $2))})]
     (case-try (pcall compiler.compile-string (tostring identifier) {: scope})
@@ -72,37 +72,59 @@
       (true val) val
       (catch _ nil))))
 
-(fn doc [env scope name]
+(fn doc [{&as opts : env : scope} name]
   (let [path (or (utils.multi-sym? name) [name])
         (ok? target) (pcall #(or (utils.get-in scope.specials path)
                                  (utils.get-in scope.macros path)
-                                 (resolve name env scope)))]
+                                 (resolve opts name)))]
     (if ok?
         {:value (specials.doc target name)}
         {:error {:type :repl
                  :message (.. "Could not find " name " for docs.")}})))
 
+(fn info [{&as opts : env : scope} name]
+  (-?> name (resolve opts) (debug.getinfo)))
+
+(fn find [{&as opts : env : scope} name]
+  (case (info opts name)
+    {:what "Lua" : source :linedefined line :short_src src}
+    (let [fnlsrc (?. compiler.sourcemap source line 2)]
+      {:value (string.format "%s:%s" src (or fnlsrc line))})
+    nil {:error {:type :repl
+                 :message "Unknown value"}}
+    _ {:error {:type :repl
+               :message "No source info"}}))
+
+(comment (find {:env (specials.wrap-env _G)
+                :scope (compiler.make-scope)}
+               "pairs")
+
+         (global foo 43)
+         (debug.getinfo (resolve {:env (specials.wrap-env _G)
+                                  :scope (compiler.make-scope)}
+                                 "foo"))
+
+         (utils.sym? "iop"))
+
 (fn repl []
-  (let [old-root-options utils.root.options
-        {:fennelrc ?fennelrc &as opts} (utils.copy {})
-        _ (set opts.fennelrc nil)
-        _ (when ?fennelrc (?fennelrc))
-        env (specials.wrap-env _G)]
-    (set (opts.env opts.scope) (values env (compiler.make-scope)))
-    (fn newindex [t k v] (when (. opts.scope.manglings k) (rawset t k v)))
-    (set env.___replLocals___ (setmetatable {} {:__newindex newindex}))
-    ;; use metadata unless we've specifically disabled it
-    (set opts.useMetadata true)
-    {:complete (partial completer env opts.scope)
-     :doc (partial doc env opts.scope)
+  (let [scope (compiler.make-scope)
+        env (specials.wrap-env _G)
+        useMetadata true
+        opts {: env : scope : useMetadata}]
+    (set opts.env.___replLocals___
+         (setmetatable {}
+                       {:__newindex (fn [t k v]
+                                      (when (. opts.scope.manglings k) (rawset t k v)))}))
+    {:complete (partial complete opts)
+     :doc (partial doc opts)
      :eval (fn [code-str]
              (let [(ok parser-not-eof? form) (pcall (parser.parser code-str))]
                (if (not ok)
                    {:error {:type :parse :data [parser-not-eof? form]}}
                    (case-try (pcall compiler.compile form
                                     (doto opts (tset :source code-str)))
-                     (true src) (let [src (splice-save-locals env src opts.scope)
-                                      (ok? f) (pcall specials.load-code src env)]
+                     (true src) (let [src (splice-save-locals opts src)
+                                      (ok? f) (pcall specials.load-code src opts.env)]
                                   (if ok?
                                       (let [value (f)]
                                         {: value :value-str (view value)})
@@ -119,6 +141,8 @@
    ((. (eval "(global x 3)")
        :return))
    ((. (eval "(+ x x)")
-       :return))))
+       :return)))
+
+ (?. {:foo {:bar 2}} :foo :bar))
 
 (repl)
