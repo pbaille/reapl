@@ -36,6 +36,19 @@
 (local repl-ops
        [:eval :complete :doc :reload :find :compile :apropos :apropos-doc :apropos-show-docs])
 
+(fn encode [data]
+  (fn deep-encode-fn [t]
+    (case (type t)
+      :function "#<function>"
+      :table
+      (let [result {}]
+        (each [k v (pairs t)]
+          (tset result k (deep-encode-fn v)))
+        result)
+      _ t))
+  (json.encode (deep-encode-fn data)
+               {}))
+
 (fn repl-fn []
   (let [{: complete : eval &as ops} (require :simple-repl)]
     (fn repl []
@@ -51,7 +64,7 @@
                   (xpcall (fn [] (let [output (eval arg)]
                                    (dbg [:eval output])
                                    (xpcall (fn []
-                                             (udp-out:send (json.encode {: op : arg : output} {})))
+                                             (udp-out:send (encode {: op : arg : output})))
                                            (error-handler opts "encode"))))
                           (error-handler opts "eval"))
 
@@ -67,21 +80,21 @@
                                                                          (string.find e "tried to reference a macro")
                                                                          "macro"
                                                                          "unknown")))))))]
-                                  (json.encode {: op
-                                                :symbol arg
-                                                : completions
-                                                : types} {})))
+                                  (encode {: op
+                                           :symbol arg
+                                           : completions
+                                           : types})))
                   _
                   (if (?. ops op)
                       (let [output ((. ops op) arg)]
                         (dbg [:op op :output output])
                         (udp-out:send
-                         (json.encode
+                         (encode
                           (u.tbl.merge opts
                                        {: output}))))
                       (do (dbg "unknown op")
                           (udp-out:send
-                           (json.encode
+                           (encode
                             {:error {:type :unknow-op
                                      :message (.. "Reapl: '" op "' not supported.")}}))))))))
       (reaper.defer repl))))

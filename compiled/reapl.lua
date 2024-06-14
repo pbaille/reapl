@@ -47,34 +47,54 @@ local function error_handler(command, error_type)
 end
 pcall(function() require("fennel").metadata:setall(error_handler, "fnl/arglist", {"command", "error-type"}) end)
 local repl_ops = {"eval", "complete", "doc", "reload", "find", "compile", "apropos", "apropos-doc", "apropos-show-docs"}
+local function encode(data)
+  local function deep_encode_fn(t)
+    local _7_ = type(t)
+    if (_7_ == "function") then
+      return "#<function>"
+    elseif (_7_ == "table") then
+      local result = {}
+      for k, v in pairs(t) do
+        result[k] = deep_encode_fn(v)
+      end
+      return result
+    else
+      local _ = _7_
+      return t
+    end
+  end
+  pcall(function() require("fennel").metadata:setall(deep_encode_fn, "fnl/arglist", {"t"}) end)
+  return json.encode(deep_encode_fn(data), {})
+end
+pcall(function() require("fennel").metadata:setall(encode, "fnl/arglist", {"data"}) end)
 local function repl_fn()
-  local _let_7_ = require("simple-repl")
-  local complete = _let_7_["complete"]
-  local eval = _let_7_["eval"]
-  local ops = _let_7_
+  local _let_9_ = require("simple-repl")
+  local complete = _let_9_["complete"]
+  local eval = _let_9_["eval"]
+  local ops = _let_9_
   local function repl()
     udp:settimeout(0.0001)
     local m = udp:receive()
     if m then
       dbg({"input", m})
-      local _let_8_ = json.decode(m)
-      local opts = _let_8_
-      local op = _let_8_["op"]
-      local arg = _let_8_["arg"]
+      local _let_10_ = json.decode(m)
+      local opts = _let_10_
+      local op = _let_10_["op"]
+      local arg = _let_10_["arg"]
       if (op == "eval") then
-        local function _9_()
+        local function _11_()
           local output = eval(arg)
           dbg({"eval", output})
-          local function _10_()
-            return udp_out:send(json.encode({op = op, arg = arg, output = output}, {}))
+          local function _12_()
+            return udp_out:send(encode({op = op, arg = arg, output = output}))
           end
-          pcall(function() require("fennel").metadata:setall(_10_, "fnl/arglist", {}) end)
-          return xpcall(_10_, error_handler(opts, "encode"))
+          pcall(function() require("fennel").metadata:setall(_12_, "fnl/arglist", {}) end)
+          return xpcall(_12_, error_handler(opts, "encode"))
         end
-        pcall(function() require("fennel").metadata:setall(_9_, "fnl/arglist", {}) end)
-        xpcall(_9_, error_handler(opts, "eval"))
+        pcall(function() require("fennel").metadata:setall(_11_, "fnl/arglist", {}) end)
+        xpcall(_11_, error_handler(opts, "eval"))
       elseif (op == "complete") then
-        local function _17_()
+        local function _19_()
           local completions = complete(arg)
           local types
           do
@@ -83,21 +103,21 @@ local function repl_fn()
               local k_15_auto, v_16_auto = nil, nil
               do
                 local result = eval(("(type " .. v .. ")"))
-                local function _14_()
+                local function _16_()
                   local e
                   do
-                    local t_11_ = result
-                    if (nil ~= t_11_) then
-                      t_11_ = t_11_.error
+                    local t_13_ = result
+                    if (nil ~= t_13_) then
+                      t_13_ = t_13_.error
                     else
                     end
-                    if (nil ~= t_11_) then
-                      t_11_ = t_11_.message
+                    if (nil ~= t_13_) then
+                      t_13_ = t_13_.message
                     else
                     end
-                    e = t_11_
+                    e = t_13_
                   end
-                  local function _15_()
+                  local function _17_()
                     if string.find(e, "tried to reference a special form") then
                       return "keyword"
                     elseif string.find(e, "tried to reference a macro") then
@@ -106,9 +126,9 @@ local function repl_fn()
                       return "unknown"
                     end
                   end
-                  return (e and _15_())
+                  return (e and _17_())
                 end
-                k_15_auto, v_16_auto = v, (result.value or _14_())
+                k_15_auto, v_16_auto = v, (result.value or _16_())
               end
               if ((k_15_auto ~= nil) and (v_16_auto ~= nil)) then
                 tbl_14_auto[k_15_auto] = v_16_auto
@@ -117,27 +137,27 @@ local function repl_fn()
             end
             types = tbl_14_auto
           end
-          return json.encode({op = op, symbol = arg, completions = completions, types = types}, {})
+          return encode({op = op, symbol = arg, completions = completions, types = types})
         end
-        udp_out:send(_17_())
+        udp_out:send(_19_())
       else
         local _ = op
-        local _19_
+        local _21_
         do
-          local t_18_ = ops
-          if (nil ~= t_18_) then
-            t_18_ = t_18_[op]
+          local t_20_ = ops
+          if (nil ~= t_20_) then
+            t_20_ = t_20_[op]
           else
           end
-          _19_ = t_18_
+          _21_ = t_20_
         end
-        if _19_ then
+        if _21_ then
           local output = ops[op](arg)
           dbg({"op", op, "output", output})
-          udp_out:send(json.encode(u.tbl.merge(opts, {output = output})))
+          udp_out:send(encode(u.tbl.merge(opts, {output = output})))
         else
           dbg("unknown op")
-          udp_out:send(json.encode({error = {type = "unknow-op", message = ("Reapl: '" .. op .. "' not supported.")}}))
+          udp_out:send(encode({error = {type = "unknow-op", message = ("Reapl: '" .. op .. "' not supported.")}}))
         end
       end
     else
@@ -148,10 +168,10 @@ local function repl_fn()
   return repl
 end
 pcall(function() require("fennel").metadata:setall(repl_fn, "fnl/arglist", {}) end)
-local function start_repl(_24_)
-  local _arg_25_ = _24_
-  local options = _arg_25_
-  local ports = _arg_25_["ports"]
+local function start_repl(_26_)
+  local _arg_27_ = _26_
+  local options = _arg_27_
+  local ports = _arg_27_["ports"]
   setup_udp(options)
   return repl_fn()()
 end
