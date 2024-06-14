@@ -5,6 +5,7 @@ fennel = require("fennel")
 u = require("pb-utils")
 ru = require("reaper-utils")
 __fnl_global__reascript_2ddoc = require("reascript-doc")
+actions = require("reaper-actions")
 r = reaper
 local function dbg(...)
   if debug then

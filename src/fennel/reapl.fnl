@@ -5,6 +5,7 @@
 (global u (require :pb-utils))
 (global ru (require :reaper-utils))
 (global reascript-doc (require :reascript-doc))
+(global actions (require :reaper-actions))
 (global r reaper)
 
 (fn dbg [...]
