@@ -6,6 +6,15 @@
   (tset package.loaded p nil)
   (require p))
 
+(fn clone [x]
+  (if (= :table (type x))
+      (if (> (# x) 0)
+          (icollect [_ v (ipairs x) :into []]
+            (clone v))
+          (collect [k v (pairs x) :into {}]
+            (values k (clone v))))
+      x))
+
 (local path {})
 (local file {})
 (local seq {})
@@ -180,6 +189,20 @@ Returns nil if passed something other than a multi-sym."
     (seq.append s x))
   s)
 
+(fn seq.take [s n]
+  (var ret [])
+  (let [max (length s)]
+    (for [i 1 (if (> n max) max n)]
+      (table.insert ret (. s i))))
+  ret)
+
+(fn seq.take-nth [s n]
+  (var ret [])
+  (each [i v (ipairs s)]
+    (when (= 0 (math.fmod (- i 1) n))
+        (table.insert ret (. s i))))
+  ret)
+
 (fn seq.keep [s f]
   "Keep elements of sequence `s` that satisfy the function `f`."
   (icollect [_ x (ipairs s)] (f x)))
@@ -235,6 +258,46 @@ Returns nil if passed something other than a multi-sym."
           (table.insert ret elem)))
     ret))
 
+(fn tbl.walk
+  [x inner outer]
+  (case (type x)
+    :table (outer (collect [k v (pairs x) :into {}]
+                    (values k (inner v))))
+    _ (outer x)))
+
+(fn tbl.postwalk
+  [x f]
+  (tbl.walk x (fn [y] (tbl.postwalk y f)) f))
+
+(fn tbl.prewalk
+  [x f]
+  (tbl.walk (f x)
+            (fn [y]
+              (tbl.prewalk y f))
+            (fn [y] y)))
+
+(fn tbl.indexed-walk
+  [x at inner outer]
+  (if (= :table (type x))
+      (outer at (collect [k v (pairs x) :into {}]
+                  (values k (inner (seq.append (clone at) k) v))))
+      (outer at x)))
+
+(fn tbl.indexed-postwalk [x f]
+  (fn postwalk
+    [x at f]
+    (tbl.indexed-walk x at (fn [at y] (postwalk y at f)) f))
+  (postwalk x [] f))
+
+(fn tbl.indexed-prewalk [x f]
+  (fn prewalk
+    [x at f]
+    (tbl.indexed-walk (f at x)
+                      at
+                      (fn [at y]
+                        (prewalk y at f))
+                      (fn [_ y] y)))
+  (prewalk x [] f))
 
 ;; ------------------------------------------------------------
 (set hof.not #(not $))
@@ -325,7 +388,26 @@ Returns nil if passed something other than a multi-sym."
           (m {:a 1 :b 5})
 
           ((tbl.getter [:a :b]) {:x {:b 3}})
-          ((tbl.getter [:a :b]) {:a {:b 3}})])
+          ((tbl.getter [:a :b]) {:a {:b 3}})
+
+          (tbl.prewalk {:a 1
+                        :b {:c 2 :d [2 3 4]}}
+                       (fn [x]
+                         (if (= :number (type x))
+                             (+ 1 x)
+                             x)))
+
+          (clone {:a 1
+                  :b {:c 2 :d [2 3 4]}})
+
+          (local view (require :fennel.view))
+          (tbl.indexed-prewalk {:a 1
+                                :b {:c 2 :d [2 3 4]}}
+                               (fn [at x]
+                                 (print (view [at x]))
+                                 (if (= :number (type x))
+                                     (+ 1 x)
+                                     x)))])
 
 
 
@@ -338,5 +420,5 @@ Returns nil if passed something other than a multi-sym."
  : tbl
  : hof
  : reload
- : fold
- : seq}
+ : seq
+ : clone}
