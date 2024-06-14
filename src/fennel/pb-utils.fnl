@@ -6,14 +6,13 @@
   (tset package.loaded p nil)
   (require p))
 
-(fn fold [x f xs]
-  "Accumulate a result over the sequence `xs`, starting with `x` and applying the function `f`."
-  (accumulate [x x _ e (ipairs xs)] (f x e)))
-
+(local path {})
+(local file {})
+(local seq {})
+(local tbl {})
+(local hof {})
 
 ;; ------------------------------------------------------------
-(local path {})
-
 (fn path.pwd []
   "Get the current working directory."
   (: (io.popen "pwd") :read))
@@ -27,8 +26,6 @@
 
 
 ;; ------------------------------------------------------------
-(local file {})
-
 (fn file.slurp [path]
   "Read the contents of the file at `path`."
   (match (io.open path)
@@ -46,7 +43,29 @@
 
 
 ;; ------------------------------------------------------------
-(local tbl {})
+(fn tbl.path [x]
+  "Returns a table containing the symbol's segments if passed a multi-sym.
+A multi-sym refers to a table field reference like tbl.x or access.channel:deny.
+Returns nil if passed something other than a multi-sym."
+  (if (= (type x) :string)
+      (or (let [parts []]
+            (each [part (x:gmatch "[^%.%:]+[%.%:]?")]
+              (let [last-char (part:sub -1)]
+                (when (= last-char ":")
+                  (set parts.multi-sym-method-call true))
+                (if (or (= last-char ":") (= last-char "."))
+                    (tset parts (+ (length parts) 1) (part:sub 1 -2))
+                    (tset parts (+ (length parts) 1) part))))
+            (and (next parts) parts))
+          [x])
+      (seq.seq x)
+      (let [parts (seq.keep x tbl.path)]
+        (if parts
+            (do (var ret [])
+                (each [_ p (ipairs parts)]
+                  (seq.concat ret p))
+                ret)))
+      nil))
 
 (fn tbl.matcher [m]
   "Return a matcher function for the table `m`."
@@ -67,7 +86,8 @@
     :string (fn [this] (?. this at))
     :table (fn [this]
              (accumulate [this this _ k (ipairs at)]
-               (?. this k)))))
+               (?. this k)))
+    _ (fn [_] nil)))
 
 (fn tbl.match [t m]
   "Check if table `t` matches the pattern `m`."
@@ -128,7 +148,10 @@
           equal)))
 
 ;; ------------------------------------------------------------
-(local seq {})
+(fn seq.seq [t]
+  (and (= :table (type t))
+       (> (# t) 0)
+       t))
 
 (fn seq.first [s]
   "Get the first element of the sequence `s`."
@@ -177,6 +200,10 @@
         (set found x)))
   found)
 
+(fn seq.fold [xs f x]
+  "Accumulate a result over the sequence `xs`, starting with `x` and applying the function `f`."
+  (accumulate [x x _ e (ipairs xs)] (f x e)))
+
 (fn seq.sort [s key-fn compare-fn]
   "Sort sequence `s` using `key-fn` and `compare-fn`."
   (if (not key-fn) (table.sort s)
@@ -199,9 +226,17 @@
   (seq.sort-with s (fn [a b] (> (key-fn a) (key-fn b))))
   s)
 
-;; ------------------------------------------------------------
-(local hof {})
+(fn seq.interpose [s elem]
+  (let [len (length s)]
+    (var ret [])
+    (each [i v (ipairs s)]
+      (table.insert ret v)
+      (if (< i len)
+          (table.insert ret elem)))
+    ret))
 
+
+;; ------------------------------------------------------------
 (set hof.not #(not $))
 
 (fn hof.k [x]
@@ -252,7 +287,7 @@
           (let [s [1 2 3 -4 8]]
             (seq.keep s (fn [x] (if (> x 0) (+ 1 x)))))
           (let [s [1 2 3 -4 8]]
-            (fold 0 (fn [ret x] (if (> x 0) (+ ret x) ret)) s))
+            (seq.fold s (fn [ret x] (if (> x 0) (+ ret x) ret)) 0))
           (seq.first [1 2 3 4])
           (seq.last [1 2 3 4])
           (seq.append [1 2 3] 4)
@@ -262,11 +297,16 @@
           (seq.sort [1 2 3 4 3 2 5])
           (seq.sort [1 2 3 4 3 2 5] (fn [a] (* -1 a)))
           (seq.sort [1 2 3 4 3 2 5] (fn [a] (* -1 a)) (fn [a b] (> a b)))
-          (seq.sort-with [1 2 3 2 4 3] (fn [a b] (> a b)))]
+          (seq.sort-with [1 2 3 2 4 3] (fn [a b] (> a b)))
+          (seq.interpose [1 2 3] :io)]
 
          [:tbl-tries
           (local m (table-matcher {:a 1
                                    :b (fn [x] (= :boolean (type x)))}))
+
+          (tbl.path :iop.io)
+          (tbl.path "iop")
+          (tbl.path ["foo" :iop.io])
 
           (tbl.= [:a :b] (tbl.keys {:a 1 :b 3}))
           (tbl.= [1 3] (tbl.vals {:a 1 :b 3}))
