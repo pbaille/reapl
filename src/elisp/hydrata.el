@@ -65,9 +65,9 @@ If same key is in multiple plists, the value in the last plist is used."
                                                                                     (list :exit t :column "Nav")))))
                                                `(,name . ((key . ,(alist-get 'key spec))
                                                           (options . ,options)
-                                                          (fn . (function ,(if leaf?
-                                                                               (alist-get 'fn spec)
-                                                                             (hydrata_position->body-sym (cons name at)))))))))
+                                                          (fn . ,(if leaf?
+                                                                     (alist-get 'fn spec)
+                                                                   (list 'function (hydrata_position->body-sym (cons name at)))))))))
                                            children)))))
           (cons self (seq-mapcat (lambda (c) (hydrata_unnest self c)) children))))))
 
@@ -79,7 +79,7 @@ If same key is in multiple plists, the value in the last plist is used."
        ,(alist-get 'options spec)
        ,(alist-get 'doc spec)
        ("<escape>" ,(if (cdr at)
-                        (function ,(hydrata_position->body-sym (cdr at)))
+                        `(function ,(hydrata_position->body-sym (cdr at)))
                       nil)
         ,(concat "back to " (if (cdr at)
                                 (symbol-name (cadr at))
@@ -94,7 +94,7 @@ If same key is in multiple plists, the value in the last plist is used."
                  children))))
 
 (defun hydrata_compile (spec)
-  "Compile SPEC into hydra forms"
+  "Compile SPEC into hydra forms."
   (cons 'progn
         (mapcar #'hydrata_compile1 (hydrata_unnest '((at . ())) spec))))
 
@@ -108,7 +108,19 @@ If same key is in multiple plists, the value in the last plist is used."
                                       (children . ((subchild1 . ((key . "a") (fn . some-sub-fn)))
                                                    (subchild2 . ((key . "b") (fn . some-other-sub-fn))))))))))))
   (pp (hydrata_unnest () hydrata_sample))
-  (eval (hydrata_compile hydrata_sample)))
+  (eval (hydrata_compile hydrata_sample))
+  (reapl-mode_send-message :eval "(actions.get-binding-tree)")
+  (defvar reaper-action-tree
+    (alist-get 'value (alist-get 'output (car reapl-mode_history))))
+  (eval (hydrata_compile (pb-postwalk (cons 'reaper (list (cons 'children reaper-action-tree)))
+                                      (lambda (x) (if (eq 'fn (car-safe x))
+                                                 (cons 'fn `(lambda ()
+                                                              (interactive)
+                                                              (reapl-mode_send-message
+                                                               :eval
+                                                               ,(format "(actions.do-action \"%s\")"
+                                                                        (cdr x)))))
+                                               x))))))
 
 (provide 'hydrata)
 ;;; hydrata.el ends here
