@@ -1,5 +1,7 @@
+(local {: tbl
+        : clone} (require :pb-utils))
 
-(local actions
+(local reaper-actions
        {:move {:key "m"
                :children
                {:right {:key "l"
@@ -106,13 +108,35 @@
   "Retrieve the fn at given path and call it"
   (let [fn-path (-?> (action-path p)
                      (u.seq.append :fn))]
-    (case (u.tbl.get actions fn-path)
+    (case (u.tbl.get reaper-actions fn-path)
       f (f))))
+
+(fn str-join [s x]
+  (var ret "")
+  (each [i v (ipairs s)]
+    (if (> i 1)
+        (set ret (.. ret x v))
+        (set ret v)))
+  ret)
+
+(fn get-binding-tree []
+  (tbl.indexed-prewalk (clone reaper-actions)
+                       (fn [at node]
+                         (if (= :table (type node))
+                             (let [f (. node :fn)]
+                               (when f
+                                 (tset node :fn (str-join (u.seq.take-nth at 2) ".")))
+                               node)
+                             node))))
 
 (comment
  ((?. actions :move :children :left :fn))
  (action-path :move.left)
- (do-action :move.left)
+ (actions.do-action :move.left)
  (do-action :move.right)
  (do-action :move.up)
  (do-action nil))
+
+{:tree reaper-actions
+ : do-action
+ : get-binding-tree}
