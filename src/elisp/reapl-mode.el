@@ -308,7 +308,7 @@ EXTRA-PROPS plist could be given to enrich the message."
   (when reapl-mode_send-proc
     (process-send-string reapl-mode_send-proc
                          (json-encode-plist
-                          (append (list :id 0 :op op :data data)
+                          (append (list :id (current-time-string) :op op :data data)
                                   extra-props)))))
 
 (defun reapl-mode_request-evaluation (s)
