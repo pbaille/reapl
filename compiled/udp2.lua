@@ -58,5 +58,5 @@ local function listen(socket, ops)
   return loop
 end
 pcall(function() require("fennel").metadata:setall(listen, "fnl/arglist", {"socket", "ops"}) end)
---[[ (do (local sok1 (assert (sok.udp))) (local sok2 (assert (sok.udp))) (local sok3 (assert (sok.udp))) (sok1:setoption "reuseaddr" true) (sok2:setoption "reuseaddr" true) (assert (sok1:setsockname "127.0.0.1" "55551")) (assert (sok2:setpeername "127.0.0.1" "55551")) (assert (sok3:setpeername "127.0.0.1" "8084")) (local view (require "fennel.view")) (local go (listen sok1 {:print (fn [x] [x x])})) (go) (sok2:send (json.encode {:data "hello " :id 1})) (sok2:send (json.encode {:id 1 :op "print"})) (sok2:send (json.encode {:data "pouet" :id 2 :op "print"})) ()) ]]
+--[[ (local sok1 (assert (sok.udp))) (local sok2 (assert (sok.udp))) (assert (sok1:setsockname "127.0.0.1" "55551")) (assert (sok2:setpeername "127.0.0.1" "55551")) (local go (listen sok1 {:print (fn [x] [x x])})) (go) (sok2:send (json.encode {:data "hello " :id 1})) (sok2:send (json.encode {:id 1 :op "print"})) (sok2:send (json.encode {:data "pouet" :id 2 :op "print"})) (local sok3 (assert (sok.udp))) (assert (sok3:setpeername "127.0.0.1" "8088")) (sok3:send (json.encode {:data "hello " :id 1})) (sok3:send (json.encode {:id 1 :op "print"})) ]]
 return nil

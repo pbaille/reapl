@@ -1,6 +1,5 @@
 -- @noindex
 local json = require("dkjson")
-local sok = require("socket")
 local function listen(socket, handler)
   local input = {data = ""}
   local function reset_input()
@@ -45,5 +44,5 @@ local function listen(socket, handler)
   return loop
 end
 pcall(function() require("fennel").metadata:setall(listen, "fnl/arglist", {"socket", "handler"}) end)
---[[ (local sok1 (assert (sok.udp))) (local sok2 (assert (sok.udp))) (assert (sok1:setsockname "127.0.0.1" "55551")) (assert (sok2:setpeername "127.0.0.1" "55551")) (local go (listen sok1 (fn [{:data data :op op}] (case op "print" (do (print data) [data data]) _ "pouetpouet")))) (go) (sok2:send (json.encode {:data "hello " :id 1})) (sok2:send (json.encode {:id 1 :op "print"})) (sok2:send (json.encode {:data "pouet" :id 2 :op "print"})) (local sok3 (assert (sok.udp))) (assert (sok3:setpeername "127.0.0.1" "8088")) (sok3:send (json.encode {:data "hello " :id 1})) (sok3:send (json.encode {:id 1 :op "print"})) ]]
+--[[ (local sok (require "socket")) (local sok1 (assert (sok.udp))) (local sok2 (assert (sok.udp))) (assert (sok1:setsockname "127.0.0.1" "55551")) (assert (sok2:setpeername "127.0.0.1" "55551")) (local go (listen sok1 (fn [{:data data :op op}] (case op "print" (do (print data) [data data]) _ "pouetpouet")))) (go) (sok2:send (json.encode {:data "hello " :id 1})) (sok2:send (json.encode {:id 1 :op "print"})) (sok2:send (json.encode {:data "pouet" :id 2 :op "print"})) (local sok3 (assert (sok.udp))) (assert (sok3:setpeername "127.0.0.1" "8088")) (sok3:send (json.encode {:data "hello " :id 1})) (sok3:send (json.encode {:id 1 :op "print"})) ]]
 return {listen = listen}
