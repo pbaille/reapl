@@ -23,6 +23,7 @@
 (require 'fennel-mode)
 (require 'json)
 (require 'company)
+(require 'pb-udp)
 
 ;;; Code:
 
@@ -108,16 +109,16 @@
         (insert "\n\n")
         ;; insert input expression
         (insert (reapl-mode_highlight-str
-                 'fennel-mode (alist-get 'arg msg)))
+                 'fennel-mode (plist-get msg :data)))
         (insert (propertize "\n\n=>\n\n" 'face 'font-lock-comment-face))
         ;; insert return
-        (let* ((output (alist-get 'output msg))
-               (err (alist-get 'error output))
-               (value-str (alist-get 'value-str output))
-               (value (alist-get 'value output)))
+        (let* ((output (plist-get msg :output))
+               (err (plist-get output :error))
+               (value-str (plist-get output :value-str))
+               (value (plist-get output :value)))
           (cond (err
-                 (insert (propertize (concat (alist-get 'type err) " error:\n\n"
-                                             (alist-get 'message err))
+                 (insert (propertize (concat (plist-get err :type) " error:\n\n"
+                                             (plist-get err :message))
                                      'face 'font-lock-warning-face)))
                 (value-str
                  (insert (reapl-mode_highlight-str 'reapl-mode value-str)))
@@ -150,20 +151,20 @@
 
   (defun reapl-mode_output-first-value (msg)
     "Extract the first value from the reapl server response message."
-    (let ((output (alist-get 'output msg)))
-      (if-let* ((values (alist-get 'values output)))
-          (aref values 0)
-        (alist-get 'value output))))
+    (let ((output (plist-get msg :output)))
+      (if-let* ((values (plist-get output :values)))
+          (car values)
+        (plist-get output :value))))
 
   (defun reapl-mode_insert-json-output (msg)
     "Insert the output value of the reapl server response (MSG) as highlighted JSON."
     (insert (reapl-mode_highlight-str
-             'json-mode (reapl-mode_prettify-json-string (json-encode (alist-get 'output msg))))))
+             'json-mode (reapl-mode_prettify-json-string (json-encode (plist-get msg :output))))))
 
   (defun reapl-mode_insert-reapl-command (msg)
     "Insert a reapl server command request."
     (insert (reapl-mode_highlight-str
-             'fennel-mode (format "%s" (concat "," (alist-get 'op msg) " " (alist-get 'arg msg))))))
+             'fennel-mode (format "%s" (concat "," (plist-get msg :op) " " (plist-get msg :data))))))
 
   (defun reapl-mode_insert-formatted-doc-output (doc-str)
     "Insert formatted docstring (DOC-STR) into current buffer."
@@ -183,33 +184,31 @@
         ;; input/output separator
         (insert (propertize "\n\n=>\n\n" 'face 'font-lock-comment-face))
         ;; insert return
-        (cond ((string-equal (alist-get 'op msg) "doc")
+        (cond ((equal(plist-get msg :op) "doc")
                (reapl-mode_insert-formatted-doc-output (reapl-mode_output-first-value msg)))
               (t (reapl-mode_insert-json-output msg)))
         (insert "\n")
         ;; insert a line at the end
         (reapl-mode_insert-line buffer)))))
 
-(defun reapl-mode_on-receive (_ msg)
+(defun reapl-mode_on-receive (msg)
   "Handle the received messages MSG."
-  (let* ((json-object-type 'alist)
-         (json-msg (json-read-from-string msg))
-         (op (alist-get 'op json-msg))
-         (silent (alist-get 'silent json-msg)))
+  (let* ((op (plist-get msg :op))
+         (silent (plist-get msg :silent)))
     (setq reapl-mode_history
-          (cons json-msg reapl-mode_history))
-    (cond ((string-equal op "eval") (reapl-mode_print-evaluation-result json-msg))
-          ((string-equal op "complete") (setq reapl-mode_completions json-msg))
+          (cons msg reapl-mode_history))
+    (cond ((string-equal op "eval") (reapl-mode_print-evaluation-result msg))
+          ((string-equal op "complete") (setq reapl-mode_completions (plist-get msg :output)))
           ((string-equal op "doc")
            (setq reapl-mode_documentation
-                 (reapl-mode_formatted-doc (reapl-mode_output-first-value json-msg)))
-           (when (not silent) (reapl-mode_print-command-result json-msg)))
-          ((not silent) (reapl-mode_print-command-result json-msg)))
+                 (reapl-mode_formatted-doc (reapl-mode_output-first-value msg)))
+           (when (not silent) (reapl-mode_print-command-result msg)))
+          ((not silent) (reapl-mode_print-command-result msg)))
     (if-let* ((buf (process-buffer reapl-mode_receive-proc))
               (win (get-buffer-window buf)))
-      (with-selected-window win
-        (goto-char (point-max))
-        (recenter -1)))))
+        (with-selected-window win
+          (goto-char (point-max))
+          (recenter -1)))))
 
 (defun reapl-mode_start-evaluation-proc ()
   "Start the completion process."
@@ -221,16 +220,17 @@
          :service reapl-mode_receive-port
          :server t
          :family 'ipv4
-         :type 'datagram
-         :filter #'reapl-mode_on-receive
-         :sentinel (lambda (_ _event)))))
+         :type 'datagram))
+  (set-process-filter reapl-mode_receive-proc
+                      (pb-udp_mk-proc-filter #'reapl-mode_on-receive)))
 
 ;; completions
 ;; --------------------------------------------
 
 (defun reapl-mode_completion-details (item)
   "Find details about ITEM completion."
-  (let ((type (alist-get (intern item) (alist-get 'types reapl-mode_completions))))
+  (let* ((types (plist-get reapl-mode_completions :types))
+         (type (plist-get types (intern (format ":%s" item)))))
     (list :type type
           :kind (cond ((eq type "function") 'function)
                       ((eq type "table") 'module)
@@ -245,7 +245,7 @@
     (when reapl-mode_completions
       (list (car bounds)
             (cdr bounds)
-            (append (alist-get 'completions reapl-mode_completions)
+            (append (plist-get reapl-mode_completions :completions)
                     nil)
             :annotation-function
             (lambda (item)
@@ -302,13 +302,13 @@
   (display-buffer (get-buffer "*reapl-evaluation*")))
 
 
-(defun reapl-mode_send-message (op arg &optional extra-props)
-  "Send the message {op: OP, arg: ARG} to the remote reaper server.
+(defun reapl-mode_send-message (op data &optional extra-props)
+  "Send the message {id: 0, op: OP, data: DATA to the remote reaper server.
 EXTRA-PROPS plist could be given to enrich the message."
   (when reapl-mode_send-proc
     (process-send-string reapl-mode_send-proc
                          (json-encode-plist
-                          (append (list :op op :arg arg)
+                          (append (list :id 0 :op op :data data)
                                   extra-props)))))
 
 (defun reapl-mode_request-evaluation (s)

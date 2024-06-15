@@ -17,22 +17,18 @@
 
 (var debug true)
 
-(local udp (assert (sok.udp)))
-(local udp-out (assert (sok.udp)))
+(local input-socket (assert (sok.udp)))
+(local output-socket (assert (sok.udp)))
 
 (fn setup-udp [{:ports {: input : output}}]
-  (udp:setoption "reuseaddr" true)
-  (assert (udp:setsockname "127.0.0.1" input))
-  (assert (udp-out:setpeername "127.0.0.1" output))
+  (input-socket:setoption "reuseaddr" true)
+  (input-socket:setoption "send-buffer-size" 32000)
+  (assert (input-socket:setsockname "127.0.0.1" input))
+  (assert (output-socket:setpeername "127.0.0.1" output))
   (ru.misc.log (.. "setting udp sockets:\n"
                    "in: localhost:" input
                    "\nout: localhost:" output
                    "\n\nReapl server running !\n")))
-
-(fn error-handler [command error-type]
-  (fn [e]
-    (udp-out:send
-     (json.encode (u.tbl.merge command {:output {:error {:type error-type :message e}}}) {}))))
 
 (local repl-ops
        [:eval :complete :doc :reload :find :compile :apropos :apropos-doc :apropos-show-docs])
@@ -50,54 +46,52 @@
   (json.encode (deep-encode-fn data)
                {}))
 
+(fn respond [opts output]
+  (let [res (u.tbl.merge opts
+                         {: output})]
+    (dbg [:out res])
+    (output-socket:send (encode res))))
+
+(fn error-handler [opts error-type]
+  (fn [e]
+    (respond opts {:error {:type error-type :message e}})))
+
+(fn fennel-type-error->kind [e]
+  (and e
+       (if (string.find e "tried to reference a special form")
+           "keyword"
+           (string.find e "tried to reference a macro")
+           "macro"
+           "unknown")))
+
 (fn repl-fn []
-  (let [{: complete : eval &as ops} (require :simple-repl)]
+  (let [{: complete : eval &as ops} (require :simple-repl)
+        {: listen} (require :udp-utils)
+        flush (listen input-socket
+               (fn [{&as opts : op : data}]
+
+                 (dbg [:in opts])
+                 (case op
+
+                   :eval
+                   (xpcall (fn [] (respond opts (eval data)))
+                           (error-handler opts "eval"))
+
+                   :complete
+                   (let [completions (complete data)
+                         types (collect [_ v (ipairs completions)]
+                                 (let [result (eval (.. "(type " v ")"))]
+                                   (values v (or result.value
+                                                 (fennel-type-error->kind (?. result :error :message))))))]
+                     (respond opts {: completions
+                                    : types}))
+                   _
+                   (if (?. ops op)
+                       (respond opts ((. ops op) data))
+                       (respond opts {:error {:type :unknow-op
+                                              :message (.. "Reapl: '" op "' not supported.")}})))))]
     (fn repl []
-      (udp:settimeout 0.0001)
-      (local m (udp:receive))
-      (if m
-          (do (dbg [:input m])
-              (let [{&as opts : op : arg} (json.decode m)]
-
-                (case op
-
-                  :eval
-                  (xpcall (fn [] (let [output (eval arg)]
-                                   (dbg [:eval output])
-                                   (xpcall (fn []
-                                             (udp-out:send (encode {: op : arg : output})))
-                                           (error-handler opts "encode"))))
-                          (error-handler opts "eval"))
-
-                  :complete
-                  (udp-out:send (let [completions (complete arg)
-                                      types (collect [_ v (ipairs completions)]
-                                              (let [result (eval (.. "(type " v ")"))]
-                                                (values v (or result.value
-                                                              (let [e (?. result :error :message)]
-                                                                (and e
-                                                                     (if (string.find e "tried to reference a special form")
-                                                                         "keyword"
-                                                                         (string.find e "tried to reference a macro")
-                                                                         "macro"
-                                                                         "unknown")))))))]
-                                  (encode {: op
-                                           :symbol arg
-                                           : completions
-                                           : types})))
-                  _
-                  (if (?. ops op)
-                      (let [output ((. ops op) arg)]
-                        (dbg [:op op :output output])
-                        (udp-out:send
-                         (encode
-                          (u.tbl.merge opts
-                                       {: output}))))
-                      (do (dbg "unknown op")
-                          (udp-out:send
-                           (encode
-                            {:error {:type :unknow-op
-                                     :message (.. "Reapl: '" op "' not supported.")}}))))))))
+      (flush)
       (reaper.defer repl))))
 
 (fn start-repl [{&as options : ports}]
