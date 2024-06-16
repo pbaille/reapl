@@ -277,11 +277,12 @@
 (defun reapl-mode_repl-quit ()
   "Connect to the reaper server."
   (interactive)
-  (when reapl-mode_send-proc
+  (when (process-live-p reapl-mode_send-proc)
     (delete-process reapl-mode_send-proc))
-  (when reapl-mode_receive-proc
+  (when (process-live-p reapl-mode_receive-proc)
     (let ((buffer (process-buffer reapl-mode_receive-proc)))
       (delete-process reapl-mode_receive-proc)
+      (mapc #'delete-window (get-buffer-window-list buffer))
       (kill-buffer buffer))))
 
 (defun reapl-mode_connect ()
@@ -289,15 +290,14 @@
   (interactive)
   (reapl-mode_repl-quit)
   (reapl-mode_connect-to-reaper)
-  (reapl-mode_start-evaluation-proc)
-  (display-buffer (get-buffer "*reapl-evaluation*")))
+  (reapl-mode_start-evaluation-proc))
 
 (defun reapl-mode_repl ()
   "Connect to the reaper server."
   (interactive)
-  (when (not reapl-mode_send-proc)
+  (unless (process-live-p reapl-mode_send-proc)
     (reapl-mode_connect-to-reaper))
-  (when (not reapl-mode_receive-proc)
+  (unless (process-live-p reapl-mode_receive-proc)
     (reapl-mode_start-evaluation-proc))
   (display-buffer (get-buffer "*reapl-evaluation*")))
 
