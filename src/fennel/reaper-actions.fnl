@@ -5,6 +5,8 @@
 
 (local ru (require :reaper-utils))
 
+(ru.misc.log "LOAD ACTIONS")
+
 (local reaper-actions
        {:move {:key "m"
                :children
@@ -153,9 +155,8 @@
   (let [actions-path (.. compilation-path "/actions")
         action-name->script (fn [name]
                               (.. "package.path = \"" compilation-path "/?.lua;\" .. package.path\n"
-                                  "ru = require(\"reaper-utils\")\n"
-                                  "local actions = require(\"reaper-actions\")\n"
-                                  "actions.dispatch[\"" name "\"]()"))]
+                                  "if not reapl_actions then reapl_actions = require(\"reaper-actions\")\n end"
+                                  "reapl_actions.dispatch[\"" name "\"]()"))]
     (if (not (os.execute (.. "ls -d " actions-path)))
         (os.execute (.. "mkdir " actions-path)))
     (if (or (not (file-exists? (.. compilation-path "/reaper-utils.lua")))
@@ -164,7 +165,7 @@
 
     (var codes {})
     (each [name _ (pairs dispatch)]
-      (let [filepath (.. actions-path "/" name ".lua")]
+      (let [filepath (.. actions-path "/pbaille_" name ".lua")]
         (file.spit filepath
                    (action-name->script name))
         (tset codes name (reaper.AddRemoveReaScript true 0 filepath true))))
