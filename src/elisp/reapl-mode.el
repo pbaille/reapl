@@ -59,7 +59,6 @@
 (defvar reapl-mode_receive-port 9997)
 (defvar reapl-mode_receive-proc nil)
 (defvar reapl-mode_completions (list))
-(defvar reapl-mode_documentation (cons "" ""))
 
 (progn
   (defun reapl-mode_prettify-json-string (json-str)
@@ -191,19 +190,22 @@
         ;; insert a line at the end
         (reapl-mode_insert-line buffer)))))
 
+(defvar reapl-mode_callbacks ())
+
 (defun reapl-mode_on-receive (msg)
   "Handle the received messages MSG."
-  (let* ((op (plist-get msg :op))
-         (silent (plist-get msg :silent)))
-    (setq reapl-mode_history
-          (cons msg reapl-mode_history))
-    (cond ((string-equal op "eval") (reapl-mode_print-evaluation-result msg))
-          ((string-equal op "complete") (setq reapl-mode_completions (plist-get msg :output)))
-          ((string-equal op "doc")
-           (setq reapl-mode_documentation
-                 (reapl-mode_formatted-doc (reapl-mode_output-first-value msg)))
-           (when (not silent) (reapl-mode_print-command-result msg)))
-          ((not silent) (reapl-mode_print-command-result msg)))
+  (setq reapl-mode_history
+        (cons msg reapl-mode_history))
+  (let* ((id (plist-get msg :id))
+         (callback (alist-get id reapl-mode_callbacks
+                              #'reapl-mode_print-command-result
+                              nil
+                              #'equal)))
+    (funcall callback msg)
+    (setq reapl-mode_callbacks
+          (cl-delete id reapl-mode_callbacks
+                     :key #'car
+                     :test #'equal))
     (if-let* ((buf (process-buffer reapl-mode_receive-proc))
               (win (get-buffer-window buf)))
         (with-selected-window win
@@ -245,8 +247,7 @@
     (when reapl-mode_completions
       (list (car bounds)
             (cdr bounds)
-            (append (plist-get reapl-mode_completions :completions)
-                    nil)
+            (plist-get reapl-mode_completions :completions)
             :annotation-function
             (lambda (item)
               (plist-get (reapl-mode_completion-details item)
@@ -267,9 +268,11 @@
   "Build a eldoc hook for reapl-mode wrapping eldoc provided CALLBACK."
   (when (eq major-mode 'reapl-mode)
     (when-let ((sym (thing-at-point 'symbol t)))
-      (reapl-mode_request-documentation sym :silent)
-      (sit-for 0.2)
-      (funcall callback (car reapl-mode_documentation)))))
+      (reapl-mode_send-message :doc sym
+                               (lambda (msg)
+                                 (funcall callback
+                                          (car (reapl-mode_formatted-doc
+                                                (reapl-mode_output-first-value msg)))))))))
 
 ;; API
 ;; --------------------------------------------
@@ -302,27 +305,32 @@
   (display-buffer (get-buffer "*reapl-evaluation*")))
 
 
-(defun reapl-mode_send-message (op data &optional extra-props)
+(defun reapl-mode_send-message (op data callback)
   "Send the message {id: 0, op: OP, data: DATA to the remote reaper server.
-EXTRA-PROPS plist could be given to enrich the message."
-  (when reapl-mode_send-proc
-    (process-send-string reapl-mode_send-proc
-                         (json-encode-plist
-                          (append (list :id (current-time-string) :op op :data data)
-                                  extra-props)))))
+CALLBACK will be called with the response.."
+  (let ((id (current-time-string)))
+    (if callback
+        (setq reapl-mode_callbacks
+              (cons (cons id callback)
+                    reapl-mode_callbacks)))
+    (when reapl-mode_send-proc
+      (process-send-string reapl-mode_send-proc
+                           (json-encode-plist
+                            (list :id id :op op :data data))))))
 
 (defun reapl-mode_request-evaluation (s)
   "Request the evaluation of string S to the remote reaper server."
-  (reapl-mode_send-message :eval s))
+  (reapl-mode_send-message :eval s #'reapl-mode_print-evaluation-result))
 
 (defun reapl-mode_request-completion (s)
   "Request the completion of strng S to the remote reaper server."
-  (reapl-mode_send-message :complete s))
+  (reapl-mode_send-message :complete s
+                           (lambda (msg) (setq reapl-mode_completions (plist-get msg :output)))))
 
-(defun reapl-mode_request-documentation (s &optional silent)
+(defun reapl-mode_request-documentation (s)
   "Request the documentation for S to the remote reaper server.
 the SILENT optional arg is staying that the result should not be printed."
-  (reapl-mode_send-message :doc s (if silent (list :silent t))))
+  (reapl-mode_send-message :doc s #'reapl-mode_print-command-result))
 
 (defun reapl-mode_thing-at-point ()
   "Return the thing at point.
@@ -364,7 +372,9 @@ This can be either a symbol, or sexp, in that order of preference."
      :family 'ipv4))
   (process-send-string reapl-mode_action-proc
                        "move-left"
-                       ))
+                       )
+  (reapl-mode_send-message :eval "(+ 3 2)"
+                           (list :callback (lambda (msg) (print "hey !") (print msg)))))
 
 (provide 'reapl-mode)
 ;;; reapl-mode.el ends here
