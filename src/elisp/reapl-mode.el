@@ -354,5 +354,17 @@ This can be either a word, symbol, or sexp, in that order of preference."
 
 (add-to-list 'auto-mode-alist '("\\.reapl\\'" . reapl-mode))
 
+'(:tries
+  (defvar reapl-mode_action-proc
+    (make-network-process
+     :name "*reapl-action*"
+     :host "localhost"
+     :service 9998
+     :type 'datagram
+     :family 'ipv4))
+  (process-send-string reapl-mode_action-proc
+                       "move-left"
+                       ))
+
 (provide 'reapl-mode)
 ;;; reapl-mode.el ends here
