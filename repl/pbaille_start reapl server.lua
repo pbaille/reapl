@@ -14,4 +14,4 @@ package.path = script_path .. "/lib/?.lua" .. ";" .. script_path .. "/compiled/?
 
 local reapl = require('reapl')
 
-return reapl({ ports = {input= 9999, output= 9997}})
+return reapl({ ports = {input= 9999, output= 9997, action= 9998}})

@@ -5,6 +5,7 @@ local clone = _local_1_["clone"]
 local file = _local_1_["file"]
 local seq = _local_1_["seq"]
 local ru = require("reaper-utils")
+ru.misc.log("LOAD ACTIONS")
 local reaper_actions
 local function _2_()
   return ru.take.cursor.update(ru.take["get-active"](), 1)
@@ -214,7 +215,7 @@ local function create_actions_dir(compilation_path, dispatch)
   local actions_path = (compilation_path .. "/actions")
   local action_name__3escript
   local function _44_(name)
-    return ("package.path = \"" .. compilation_path .. "/?.lua;\" .. package.path\n" .. "ru = require(\"reaper-utils\")\n" .. "local actions = require(\"reaper-actions\")\n" .. "actions.dispatch[\"" .. name .. "\"]()")
+    return ("package.path = \"" .. compilation_path .. "/?.lua;\" .. package.path\n" .. "if not reapl_actions then reapl_actions = require(\"reaper-actions\")\n end" .. "reapl_actions.dispatch[\"" .. name .. "\"]()")
   end
   pcall(function() require("fennel").metadata:setall(_44_, "fnl/arglist", {"name"}) end)
   action_name__3escript = _44_
@@ -228,7 +229,7 @@ local function create_actions_dir(compilation_path, dispatch)
   end
   local codes = {}
   for name, _ in pairs(dispatch) do
-    local filepath = (actions_path .. "/" .. name .. ".lua")
+    local filepath = (actions_path .. "/pbaille_" .. name .. ".lua")
     file.spit(filepath, action_name__3escript(name))
     do end (codes)[name] = reaper.AddRemoveReaScript(true, 0, filepath, true)
   end
