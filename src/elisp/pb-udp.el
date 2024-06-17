@@ -1,11 +1,22 @@
-;;; pb/pb-udp.el -*- lexical-binding: t; -*-
+;;; pb-udp.el --- utils -*- lexical-binding: t; -*-
+
+;; Author: Pierre Baille
+;; URL: https://github.com/pbaille
+;; Version: 0.0.1
+;; Package-Requires: ((emacs "29.1"))
+
+;;; Commentary:
+
+;; Utils.
+
+;;; Code:
 
 (require 'json)
 
 (defvar pb-udp_default-state (list :id nil :data ""))
 
 (defun pb-udp_mk-proc-filter (handler)
-  "Build a process filter function given an OPS plist."
+  "Build a process filter function given an HANDLER plist."
   (let ((state pb-udp_default-state))
     (lambda (_ string)
       (let ((json-object-type 'plist)
@@ -33,6 +44,7 @@
                    (error (format "bad format msg: %s" json-message))))))))))
 
 (defun pb-udp_start-listening (host port handler)
+  "Start to listen HOST PORT, handling incoming messages with HANDLER."
   (let ((proc (make-network-process
                :name "my-udp-proc"
                :buffer "*my-udp-proc*"
@@ -55,7 +67,7 @@
                               (let ((op (plist-get opts :op))
                                     (data (plist-get opts :data)))
                                 (cond ((equal op "print") (print data))
-                                      (t (error "unknown op")))))))
+                                      (t (error "Unknown op")))))))
 
   (delete-process pb-udp_send-proc)
 
@@ -75,3 +87,4 @@
                        (json-encode-plist '(:id 2 :op :print))))
 
 (provide 'pb-udp)
+;;; pb-udp.el ends here.
