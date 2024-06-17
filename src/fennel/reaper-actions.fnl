@@ -1,5 +1,9 @@
 (local {: tbl
-        : clone} (require :pb-utils))
+        : clone
+        : file
+        : seq} (require :pb-utils))
+
+(local ru (require :reaper-utils))
 
 (local reaper-actions
        {:move {:key "m"
@@ -101,14 +105,14 @@
                                                                                              {:velocity (fn [v] (math.min 127 (- v 10)))})))}}}}}})
 
 (fn action-path [p]
-  (-?> (u.tbl.path p)
-       (u.seq.interpose :children)))
+  (-?> (tbl.path p)
+       (seq.interpose :children)))
 
 (fn do-action [p]
   "Retrieve the fn at given path and call it"
   (let [fn-path (-?> (action-path p)
-                     (u.seq.append :fn))]
-    (case (u.tbl.get reaper-actions fn-path)
+                     (seq.append :fn))]
+    (case (tbl.get reaper-actions fn-path)
       f (f))))
 
 (fn str-join [s x]
@@ -125,9 +129,46 @@
                          (if (= :table (type node))
                              (let [f (. node :fn)]
                                (when f
-                                 (tset node :fn (str-join (u.seq.take-nth at 2) ".")))
+                                 (tset node :fn (str-join (seq.take-nth at 2) ".")))
                                node)
                              node))))
+
+(fn make-action-dispatcher []
+  (var dispatch {})
+  (tbl.indexed-prewalk (clone reaper-actions)
+                       (fn [at node]
+                         (if (= :table (type node))
+                             (let [f (. node :fn)]
+                               (when f
+                                 (tset dispatch (str-join (seq.take-nth at 2) "-") f))
+                               node)
+                             node)))
+  dispatch)
+
+(fn file-exists? [path]
+  (let [f (io.open path :r)]
+    (if f (do (f:close) true))))
+
+(fn create-actions-dir [compilation-path dispatch]
+  (let [actions-path (.. compilation-path "/actions")
+        action-name->script (fn [name]
+                              (.. "package.path = \"" compilation-path "/?.lua;\" .. package.path\n"
+                                  "ru = require(\"reaper-utils\")\n"
+                                  "local actions = require(\"reaper-actions\")\n"
+                                  "actions.dispatch[\"" name "\"]()"))]
+    (if (not (os.execute (.. "ls -d " actions-path)))
+        (os.execute (.. "mkdir " actions-path)))
+    (if (or (not (file-exists? (.. compilation-path "/reaper-utils.lua")))
+            (not (file-exists? (.. compilation-path "/reaper-actions.lua"))))
+        (error "reaper-utils.lua and reaper-acttions.lua should be in the given compilation path"))
+
+    (var codes {})
+    (each [name _ (pairs dispatch)]
+      (let [filepath (.. actions-path "/" name ".lua")]
+        (file.spit filepath
+                   (action-name->script name))
+        (tset codes name (reaper.AddRemoveReaScript true 0 filepath true))))
+    codes))
 
 (comment
  ((?. actions :move :children :left :fn))
@@ -139,4 +180,6 @@
 
 {:tree reaper-actions
  : do-action
- : get-binding-tree}
+ : get-binding-tree
+ :dispatch (make-action-dispatcher)
+ : create-actions-dir}
