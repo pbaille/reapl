@@ -50,7 +50,6 @@
           (f:close))
     (nil err-msg) (print "Could not open file:" err-msg)))
 
-
 ;; ------------------------------------------------------------
 (fn tbl.path [x]
   "Returns a table containing the symbol's segments if passed a multi-sym.
