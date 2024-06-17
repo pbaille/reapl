@@ -326,7 +326,7 @@ the SILENT optional arg is staying that the result should not be printed."
 
 (defun reapl-mode_thing-at-point ()
   "Return the thing at point.
-This can be either a word, symbol, or sexp, in that order of preference."
+This can be either a symbol, or sexp, in that order of preference."
   (or (thing-at-point 'symbol t)
       (thing-at-point 'sexp t)))
 
