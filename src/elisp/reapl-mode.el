@@ -23,9 +23,6 @@
 (require 'fennel-mode)
 (require 'json)
 (require 'company)
-(require 'pb-udp)
-
-;;; Code:
 
 (defvar reapl-mode-map (make-sparse-keymap))
 
@@ -34,7 +31,8 @@
   "reapl mode"
   :keymap reapl-mode-map
   ; (add-to-list 'completion-at-point-functions 'reapl-mode_complete)
-  (add-to-list 'eldoc-documentation-functions 'reapl-mode_eldoc))
+  (add-to-list 'eldoc-documentation-functions 'reapl-mode_eldoc)
+  (add-to-list 'company-backends 'reapl-mode_complete))
 
 ;; connection
 ;; --------------------------------------------
@@ -134,7 +132,6 @@
 
   (defun reapl-mode_insert-reapl-command (msg)
     "Insert a reapl server command request."
-    (print (list :insert-cmd msg))
     (insert (reapl-mode_highlight-str
              'fennel-mode (format "%s" (concat (symbol-name (plist-get msg :op)) " " (plist-get msg :data))))))
 
@@ -186,9 +183,7 @@
                         'json-mode (reapl-mode_prettify-json-string (json-encode value))))))))
 
   (defun reapl-mode_make-evaluation-request-handler (req)
-    (reapl-mode_wrap-insertion-fn req #'reapl-mode_insert-evaluation-result))
-
-  )
+    (reapl-mode_wrap-insertion-fn req #'reapl-mode_insert-evaluation-result)))
 
 (defvar reapl-mode_callbacks ())
 
@@ -198,9 +193,7 @@
         (cons msg reapl-mode_history))
   (let* ((id (plist-get msg :id))
          (callback (alist-get id reapl-mode_callbacks
-                              #'reapl-mode_print-command-result
-                              nil
-                              #'equal)))
+                              nil nil #'equal)))
     ;(print "handling ")
     ;(print msg)
     (funcall callback msg)
@@ -214,8 +207,36 @@
           (goto-char (point-max))
           (recenter -1)))))
 
-(defvar reapl-mode_receive-filter
-  (pb-udp_mk-proc-filter #'reapl-mode_on-receive))
+(defun reapl-mode_mk-proc-filter (handler)
+  "Build a process filter function given an HANDLER plist."
+  (let* ((default-state (list :id nil :data ""))
+         (state default-state))
+    (lambda (_ string)
+      (let ((json-object-type 'plist)
+            (json-array-type 'list))
+        (let* ((json-message (json-read-from-string string))
+               (id (plist-get json-message :id))
+               (op (plist-get json-message :op))
+               (data (plist-get json-message :data)))
+          (when id
+            (unless (equal (plist-get state :id) id)
+              (setq state default-state))
+            (cond ((and data (not op))
+                   (setq state
+                         (list :id id
+                               :data (concat (plist-get state :data) data))))
+                  (op
+                   (let* ((msg (if (equal (plist-get state :id) id)
+                                   (plist-put json-message
+                                              :data (json-read-from-string
+                                                     (plist-get state :data)))
+                                 json-message))
+                          (ret (funcall handler msg)))
+                     (setq state default-state)
+                     ret))
+                  (t
+                   (setq state default-state)
+                   (error (format "Bad format msg: %s" json-message))))))))))
 
 (defun reapl-mode_start-evaluation-proc ()
   "Start the completion process."
@@ -229,7 +250,7 @@
          :family 'ipv4
          :type 'datagram))
   (set-process-filter reapl-mode_receive-proc
-                      reapl-mode_receive-filter))
+                      (reapl-mode_mk-proc-filter #'reapl-mode_on-receive)))
 
 ;; completions
 ;; --------------------------------------------
@@ -243,11 +264,11 @@
                       ((eq type "table") 'module)
                       (t (or type 'variable))))))
 
-(defun reapl-mode_company-backend (command &optional arg &rest ignored)
+(defun reapl-mode_complete (command &optional arg &rest ignored)
   "Company backend for reapl-mode. COMMAND, ARG, IGNORED."
   (interactive (list 'interactive))
   (cl-case command
-    (interactive (company-begin-backend 'reapl-mode_company-backend))
+    (interactive (company-begin-backend 'reapl-mode_complete))
     (prefix (and (eq major-mode 'reapl-mode)
                  (reapl-mode_thing-at-point)))
     (candidates
@@ -262,8 +283,6 @@
                            :type))
     (kind (plist-get (reapl-mode_completion-details arg)
                      :kind))))
-
-(add-to-list 'company-backends 'reapl-mode_company-backend)
 
 (defun reapl-mode_request-doc-for-completion-candidate ()
   "Request doc current company candidate."
