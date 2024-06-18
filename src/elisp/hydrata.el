@@ -1,35 +1,29 @@
-;;; hydrata.el --- Specifies hydras using data instead of macros -*- lexical-binding: t; -*-
-;;
-;; Copyright (C) 2024 pierre baille
-;;
-;; Author: pierre baille <pierrebaille@MBP2.local>
-;; Maintainer: pierre baille <pierrebaille@MBP2.local>
-;; Created: June 14, 2024
-;; Modified: June 14, 2024
+;;; hydrata.el --- utils -*- lexical-binding: t; -*-
+
+;; Author: Pierre Baille
+;; URL: https://github.com/pbaille
 ;; Version: 0.0.1
-;; Keywords: abbrev bib c calendar comm convenience data docs emulations extensions faces files frames games hardware help hypermedia i18n internal languages lisp local maint mail matching mouse multimedia news outlines processes terminals tex tools unix vc wp
-;; Homepage: https://github.com/pierrebaille/hydrata
-;; Package-Requires: ((emacs "25.1") (hydra "0.15.0"))
-;;
-;; This file is not part of GNU Emacs.
-;;
+;; Package-Requires: ((emacs "29.1"))
+
 ;;; Commentary:
-;;
-;;  Description
-;;
-;;  Specifies hydras using data instead of macros
-;;
+
+;; Utils.
+
 ;;; Code:
 
 (require 'hydra)
 
 (defun hydrata_leaf? (spec)
-  "Test if SPEC is a leaf"
-  (not (alist-get 'children spec)))
+  "Test if SPEC is a leaf."
+  (not (plist-get spec :children)))
+
+(defun keyword-name (keyword)
+  "Convert KEYWORD to a string without the leading colon."
+  (substring (symbol-name keyword) 1))
 
 (defun hydrata_position->sym (at)
   "Turn the path AT into a symbol."
-  (intern (mapconcat #'identity (reverse (mapcar #'symbol-name at)) "/")))
+  (intern (mapconcat #'identity (reverse (mapcar #'keyword-name at)) "/")))
 
 (defun hydrata_position->body-sym (at)
   "Turn the path AT into its corresponding hydra body symbol."
@@ -44,40 +38,57 @@ If same key is in multiple plists, the value in the last plist is used."
         (setq result (plist-put result (car plist) (cadr plist)))
         (setq plist (cddr plist))))))
 
+(defun km_map-values (f pl)
+  "Apply F to each value in plist PL."
+  (cl-loop for (k v) on pl by #'cddr
+           collect k
+           and collect (funcall f k v)))
+
+(defun km_to-alist (plist)
+  "Convert PLIST to alist."
+  (let (alist)
+    (while plist
+      (setq alist (cons (cons (car plist) (cadr plist)) alist))
+      (setq plist (cddr plist)))
+    (reverse alist)))
+
 (defun hydrata_unnest (parent spec)
   "Preformat SPEC with the help of its PARENT spec."
   (let* ((name (car spec))
          (opts (cdr spec))
-         (children (alist-get 'children opts))
-         (at (cons name (alist-get 'at parent)))
-         (options (hydrata_plist-merge (alist-get 'options parent (list)) (alist-get 'options opts (list)))))
+         (children (plist-get opts :children))
+         (at (cons name (plist-get parent :at)))
+         (options (hydrata_plist-merge (or (plist-get parent :options) (list))
+                                       (or (plist-get opts :options) (list)))))
     (if children
-        (let ((self `((at . ,at)
-                      (options . ,options)
-                      (doc . ,(alist-get 'doc opts ""))
-                      (children . ,(mapcar (lambda (c)
-                                             (let* ((name (car c))
-                                                    (spec (cdr c))
-                                                    (leaf? (hydrata_leaf? spec))
-                                                    (options (if leaf?
-                                                                 (alist-get 'options c (list))
-                                                               (hydrata_plist-merge (alist-get 'options c (list))
-                                                                                    (list :exit t :column "Nav")))))
-                                               `(,name . ((key . ,(alist-get 'key spec))
-                                                          (options . ,options)
-                                                          (fn . ,(if leaf?
-                                                                     (alist-get 'fn spec)
-                                                                   (list 'function (hydrata_position->body-sym (cons name at)))))))))
-                                           children)))))
-          (cons self (seq-mapcat (lambda (c) (hydrata_unnest self c)) children))))))
+        (let ((self `(:at ,at
+                      :options ,options
+                      :doc ,(or (plist-get :doc opts)
+                                "")
+                      :children ,(km_map-values (lambda (name spec)
+                                                  (let* ((leaf? (hydrata_leaf? spec))
+                                                         (options (if leaf?
+                                                                      (or (plist-get spec :options)
+                                                                          (list))
+                                                                    (hydrata_plist-merge (or (plist-get spec :options)
+                                                                                             (list))
+                                                                                         (list :exit t :column "Nav")))))
+                                                    `(:key ,(plist-get spec :key)
+                                                      :options ,options
+                                                      :fn ,(if leaf?
+                                                               (plist-get spec :fn)
+                                                             (list 'function (hydrata_position->body-sym (cons name at)))))))
+                                                children))))
+          (cons self (seq-mapcat (lambda (c) (hydrata_unnest self c))
+                                 (km_to-alist children)))))))
 
 (defun hydrata_compile1 (spec)
   "Compile one hydrata SPEC."
-  (let ((children (alist-get 'children spec))
-        (at (alist-get 'at spec)))
+  (let ((children (plist-get spec :children))
+        (at (plist-get spec :at)))
     `(defhydra ,(hydrata_position->sym at)
-       ,(alist-get 'options spec)
-       ,(alist-get 'doc spec)
+       ,(plist-get spec :options)
+       ,(plist-get spec :doc)
        ("<escape>" ,(if (cdr at)
                         `(function ,(hydrata_position->body-sym (cdr at)))
                       nil)
@@ -87,40 +98,31 @@ If same key is in multiple plists, the value in the last plist is used."
         :exit t :column "Nav")
        ("q" nil "quit" :exit t :column "Nav")
        ,@(mapcar (lambda (c)
-                   (list* (alist-get 'key c)
-                          (alist-get 'fn c)
-                          (symbol-name (car c))
-                          (hydrata_plist-merge (list :column "Act") (alist-get 'options c (list)))))
-                 children))))
+                   (let ((name (car c))
+                         (spec (cdr c)))
+                     (list* (plist-get spec :key)
+                            (plist-get spec :fn)
+                            (keyword-name name)
+                            (hydrata_plist-merge (list :column "Act") (or (plist-get spec :options)
+                                                                          (list))))))
+                 (km_to-alist children)))))
 
-(defun hydrata_compile (spec)
-  "Compile SPEC into hydra forms."
+(defun hydrata_compile (name spec)
+  "Compile SPEC into hydra forms with NAME prefix."
   (cons 'progn
-        (mapcar #'hydrata_compile1 (hydrata_unnest '((at . ())) spec))))
+        (mapcar #'hydrata_compile1 (hydrata_unnest '(:at ()) (cons name spec)))))
 
 '(:comment
   (defvar hydrata_sample
-    '(root . ((options . (:foreign-keys warn))
-              (doc . "root:\n\n")
-              (children . ((child1 . ((key . "a") (fn . some-fn)))
-                           (child2 . ((key . "b") (fn . some-other-fn)))
-                           (child3 . ((key . "c")
-                                      (children . ((subchild1 . ((key . "a") (fn . some-sub-fn)))
-                                                   (subchild2 . ((key . "b") (fn . some-other-sub-fn))))))))))))
-  (pp (hydrata_unnest () hydrata_sample))
-  (eval (hydrata_compile hydrata_sample))
-  (reapl-mode_send-message :eval "(actions.get-binding-tree)")
-  (defvar reaper-action-tree
-    (alist-get 'value (alist-get 'output (car reapl-mode_history))))
-  (eval (hydrata_compile (pb-postwalk (cons 'reaper (list (cons 'children reaper-action-tree)))
-                                      (lambda (x) (if (eq 'fn (car-safe x))
-                                                 (cons 'fn `(lambda ()
-                                                              (interactive)
-                                                              (reapl-mode_send-message
-                                                               :eval
-                                                               ,(format "(actions.do-action \"%s\")"
-                                                                        (cdr x)))))
-                                               x))))))
+    '(:options (:foreign-keys warn)
+      :doc "root"
+      :children (:child1 (:key "a" :fn some-fn)
+                 :child2 (:key "b" :fn some-other-fn)
+                 :child3 (:key "c"
+                          :children (:subchild1 (:key "a" :fn some-sub-fn)
+                                     :subchild2 (:key "b" :fn some-other-sub-fn))))))
+  (hydrata_unnest () (cons :root hydrata_sample))
+  (eval (hydrata_compile :root hydrata_sample)))
 
 (provide 'hydrata)
 ;;; hydrata.el ends here
