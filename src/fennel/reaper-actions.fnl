@@ -131,7 +131,7 @@
                          (if (= :table (type node))
                              (let [f (. node :fn)]
                                (when f
-                                 (tset node :fn (str-join (seq.take-nth at 2) ".")))
+                                 (tset node :fn (str-join (seq.take-nth at 2) "-")))
                                node)
                              node))))
 
