@@ -89,7 +89,7 @@ Returns nil if passed something other than a multi-sym."
                            _ (= vm vt))))))))
 
 (fn tbl.getter [at]
-  "Return a getter function for accessing elements in `at`."
+  "Return a getter function for accessing elements at position `at`."
   (case (type at)
     :string (fn [this] (?. this at))
     :table (fn [this]
