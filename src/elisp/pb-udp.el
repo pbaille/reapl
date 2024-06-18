@@ -45,7 +45,7 @@
                           (let* ((msg (if (equal (plist-get state :id) id)
                                           (let ((encoded (json-read-from-string
                                                           (plist-get state :data))))
-                                            '(print `((chunk-data-str ,(plist-get state :data))
+                                            (print `((chunk-data-str ,(plist-get state :data))
                                                      (decoded ,(json-read-from-string (plist-get state :data)))
                                                      ))
                                             '(print `(len ,(length (plist-put json-message :data
