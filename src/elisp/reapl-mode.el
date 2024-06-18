@@ -37,18 +37,28 @@
 ;; connection
 ;; --------------------------------------------
 
-(defvar reapl-mode_server-port 9999)
-(defvar reapl-mode_send-proc nil)
+(defvar reapl-mode_repl-port 9999)
+(defvar reapl-mode_repl-proc nil)
+(defvar reapl-mode_action-port 9998)
+(defvar reapl-mode_action-proc nil)
 
 (defun reapl-mode_connect-to-reaper ()
   "Connect to the remote reaper server."
-  (setq reapl-mode_send-proc
+  (setq reapl-mode_repl-proc
         (make-network-process
          :name "*reapl*"
          :host "localhost"
-         :service reapl-mode_server-port
+         :service reapl-mode_repl-port
          :type 'datagram
-         :family 'ipv4)))
+         :family 'ipv4))
+
+  (setq reapl-mode_action-proc
+    (make-network-process
+     :name "*reapl-action*"
+     :host "localhost"
+     :service reapl-mode_action-port
+     :type 'datagram
+     :family 'ipv4)))
 
 ;; evaluation
 ;; --------------------------------------------
@@ -308,8 +318,8 @@
 (defun reapl-mode_repl-quit ()
   "Connect to the reaper server."
   (interactive)
-  (when (process-live-p reapl-mode_send-proc)
-    (delete-process reapl-mode_send-proc))
+  (when (process-live-p reapl-mode_repl-proc)
+    (delete-process reapl-mode_repl-proc))
   (when (process-live-p reapl-mode_receive-proc)
     (let ((buffer (process-buffer reapl-mode_receive-proc)))
       (delete-process reapl-mode_receive-proc)
@@ -326,7 +336,7 @@
 (defun reapl-mode_repl ()
   "Connect to the reaper server."
   (interactive)
-  (unless (process-live-p reapl-mode_send-proc)
+  (unless (process-live-p reapl-mode_repl-proc)
     (reapl-mode_connect-to-reaper))
   (unless (process-live-p reapl-mode_receive-proc)
     (reapl-mode_start-evaluation-proc))
@@ -342,8 +352,8 @@ CALLBACK will be called with the response.."
               (cons (cons id (or callback
                                  (reapl-mode_make-default-request-handler (list :op op :data data))))
                     reapl-mode_callbacks)))
-    (when reapl-mode_send-proc
-      (process-send-string reapl-mode_send-proc
+    (when reapl-mode_repl-proc
+      (process-send-string reapl-mode_repl-proc
                            (json-encode-plist
                             (list :id id :op op :data data))))))
 
@@ -393,19 +403,9 @@ This can be either a symbol, or sexp, in that order of preference."
 
 (add-to-list 'auto-mode-alist '("\\.reapl\\'" . reapl-mode))
 
-'(:tries
-  (defvar reapl-mode_action-proc
-    (make-network-process
-     :name "*reapl-action*"
-     :host "localhost"
-     :service 9998
-     :type 'datagram
-     :family 'ipv4))
-  (process-send-string reapl-mode_action-proc
-                       "move-left"
-                       )
-  (reapl-mode_send-message :eval "(+ 3 2)"
-                           (list :callback (lambda (msg) (print "hey !") (print msg)))))
+(defun reapl-mode_send-action (str)
+  "Send an action STR request to the server."
+  (process-send-string reapl-mode_action-proc str))
 
 (provide 'reapl-mode)
 ;;; reapl-mode.el ends here
