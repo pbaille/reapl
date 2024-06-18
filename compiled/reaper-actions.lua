@@ -170,7 +170,7 @@ local function get_binding_tree()
     if ("table" == type(node)) then
       local f = node.fn
       if f then
-        node["fn"] = str_join(seq["take-nth"](at, 2), ".")
+        node["fn"] = str_join(seq["take-nth"](at, 2), "-")
       else
       end
       return node

@@ -79,8 +79,6 @@ local function respond(opts, data)
   local len = #encoded
   if (len > 32000) then
     local chunks = string_chunk(encode(data), 8000)
-    dbg({"n-chunks", #chunks})
-    u.file.spit(("/Users/pierrebaille/Desktop/chunked-" .. opts.id .. ".json"), encoded)
     for _, chunk in ipairs(chunks) do
       output_socket:send(encode({id = opts.id, data = chunk}))
     end

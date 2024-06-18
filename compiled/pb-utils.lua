@@ -182,7 +182,7 @@ tbl.getter = function(at)
     return _30_
   end
 end
-pcall(function() require("fennel").metadata:setall(tbl.getter, "fnl/arglist", {"at"}, "fnl/docstring", "Return a getter function for accessing elements in `at`.") end)
+pcall(function() require("fennel").metadata:setall(tbl.getter, "fnl/arglist", {"at"}, "fnl/docstring", "Return a getter function for accessing elements at position `at`.") end)
 tbl.match = function(t, m)
   return tbl.matcher(m)(t)
 end
