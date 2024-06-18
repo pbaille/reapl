@@ -65,22 +65,41 @@ local function encode(data)
   return json.encode(deep_encode_fn(data), {})
 end
 pcall(function() require("fennel").metadata:setall(encode, "fnl/arglist", {"data"}) end)
-local function respond(opts, output)
-  local res = u.tbl.merge(opts, {output = output})
-  dbg({"out", res})
-  return output_socket:send(encode(res))
+local function string_chunk(s, n)
+  local ret = {}
+  for i = 1, #s, n do
+    table.insert(ret, s:sub(i, ((i + n) - 1)))
+  end
+  return ret
 end
-pcall(function() require("fennel").metadata:setall(respond, "fnl/arglist", {"opts", "output"}) end)
+pcall(function() require("fennel").metadata:setall(string_chunk, "fnl/arglist", {"s", "n"}) end)
+local function respond(opts, data)
+  local res = u.tbl.merge(opts, {data = data})
+  local encoded = encode(res)
+  local len = #encoded
+  if (len > 32000) then
+    local chunks = string_chunk(encode(data), 8000)
+    dbg({"n-chunks", #chunks})
+    u.file.spit(("/Users/pierrebaille/Desktop/chunked-" .. opts.id .. ".json"), encoded)
+    for _, chunk in ipairs(chunks) do
+      output_socket:send(encode({id = opts.id, data = chunk}))
+    end
+    return output_socket:send(encode({id = opts.id, op = opts.op}))
+  else
+    return output_socket:send(encoded)
+  end
+end
+pcall(function() require("fennel").metadata:setall(respond, "fnl/arglist", {"opts", "data"}) end)
 local function error_handler(opts, error_type)
-  local function _8_(e)
+  local function _9_(e)
     return respond(opts, {error = {type = error_type, message = e}})
   end
-  pcall(function() require("fennel").metadata:setall(_8_, "fnl/arglist", {"e"}) end)
-  return _8_
+  pcall(function() require("fennel").metadata:setall(_9_, "fnl/arglist", {"e"}) end)
+  return _9_
 end
 pcall(function() require("fennel").metadata:setall(error_handler, "fnl/arglist", {"opts", "error-type"}) end)
 local function fennel_type_error__3ekind(e)
-  local function _9_()
+  local function _10_()
     if string.find(e, "tried to reference a special form") then
       return "keyword"
     elseif string.find(e, "tried to reference a macro") then
@@ -89,22 +108,22 @@ local function fennel_type_error__3ekind(e)
       return "unknown"
     end
   end
-  return (e and _9_())
+  return (e and _10_())
 end
 pcall(function() require("fennel").metadata:setall(fennel_type_error__3ekind, "fnl/arglist", {"e"}) end)
 local function action_step(port)
-  local function _10_()
+  local function _11_()
     local m = action_socket:receive()
     if m then
       dbg({"got action ", m})
       local f
       do
-        local t_11_ = actions.dispatch
-        if (nil ~= t_11_) then
-          t_11_ = t_11_[m]
+        local t_12_ = actions.dispatch
+        if (nil ~= t_12_) then
+          t_12_ = t_12_[m]
         else
         end
-        f = t_11_
+        f = t_12_
       end
       if f then
         return f()
@@ -115,35 +134,35 @@ local function action_step(port)
       return nil
     end
   end
-  pcall(function() require("fennel").metadata:setall(_10_, "fnl/arglist", {}) end)
-  return _10_
+  pcall(function() require("fennel").metadata:setall(_11_, "fnl/arglist", {}) end)
+  return _11_
 end
 pcall(function() require("fennel").metadata:setall(action_step, "fnl/arglist", {"port"}) end)
 local function repl_step()
-  local _let_15_ = require("simple-repl")
-  local complete = _let_15_["complete"]
-  local eval = _let_15_["eval"]
-  local ops = _let_15_
-  local _let_16_ = require("udp-utils")
-  local listen = _let_16_["listen"]
-  local function _19_(_17_)
-    local _arg_18_ = _17_
-    local opts = _arg_18_
-    local op = _arg_18_["op"]
-    local data = _arg_18_["data"]
+  local _let_16_ = require("simple-repl")
+  local complete = _let_16_["complete"]
+  local eval = _let_16_["eval"]
+  local ops = _let_16_
+  local _let_17_ = require("udp-utils")
+  local listen = _let_17_["listen"]
+  local function _20_(_18_)
+    local _arg_19_ = _18_
+    local opts = _arg_19_
+    local op = _arg_19_["op"]
+    local data = _arg_19_["data"]
     dbg({"in", opts})
     if (op == "do") then
-      local function _20_()
+      local function _21_()
         return eval(data)
       end
-      pcall(function() require("fennel").metadata:setall(_20_, "fnl/arglist", {}) end)
-      return xpcall(_20_, error_handler(opts, "do"))
+      pcall(function() require("fennel").metadata:setall(_21_, "fnl/arglist", {}) end)
+      return xpcall(_21_, error_handler(opts, "do"))
     elseif (op == "eval") then
-      local function _21_()
+      local function _22_()
         return respond(opts, eval(data))
       end
-      pcall(function() require("fennel").metadata:setall(_21_, "fnl/arglist", {}) end)
-      return xpcall(_21_, error_handler(opts, "eval"))
+      pcall(function() require("fennel").metadata:setall(_22_, "fnl/arglist", {}) end)
+      return xpcall(_22_, error_handler(opts, "eval"))
     elseif (op == "complete") then
       local completions = complete(data)
       local types
@@ -153,19 +172,19 @@ local function repl_step()
           local k_15_auto, v_16_auto = nil, nil
           do
             local result = eval(("(type " .. v .. ")"))
-            local function _23_()
-              local t_22_ = result
-              if (nil ~= t_22_) then
-                t_22_ = t_22_.error
+            local function _24_()
+              local t_23_ = result
+              if (nil ~= t_23_) then
+                t_23_ = t_23_.error
               else
               end
-              if (nil ~= t_22_) then
-                t_22_ = t_22_.message
+              if (nil ~= t_23_) then
+                t_23_ = t_23_.message
               else
               end
-              return t_22_
+              return t_23_
             end
-            k_15_auto, v_16_auto = v, (result.value or fennel_type_error__3ekind(_23_()))
+            k_15_auto, v_16_auto = v, (result.value or fennel_type_error__3ekind(_24_()))
           end
           if ((k_15_auto ~= nil) and (v_16_auto ~= nil)) then
             tbl_14_auto[k_15_auto] = v_16_auto
@@ -177,30 +196,30 @@ local function repl_step()
       return respond(opts, {completions = completions, types = types})
     else
       local _ = op
-      local _28_
+      local _29_
       do
-        local t_27_ = ops
-        if (nil ~= t_27_) then
-          t_27_ = t_27_[op]
+        local t_28_ = ops
+        if (nil ~= t_28_) then
+          t_28_ = t_28_[op]
         else
         end
-        _28_ = t_27_
+        _29_ = t_28_
       end
-      if _28_ then
+      if _29_ then
         return respond(opts, ops[op](data))
       else
         return respond(opts, {error = {type = "unknow-op", message = ("Reapl: '" .. op .. "' not supported.")}})
       end
     end
   end
-  pcall(function() require("fennel").metadata:setall(_19_, "fnl/arglist", {"{:data data :op op &as opts}"}) end)
-  return listen(input_socket, _19_)
+  pcall(function() require("fennel").metadata:setall(_20_, "fnl/arglist", {"{:data data :op op &as opts}"}) end)
+  return listen(input_socket, _20_)
 end
 pcall(function() require("fennel").metadata:setall(repl_step, "fnl/arglist", {}) end)
-local function start_repl(_32_)
-  local _arg_33_ = _32_
-  local options = _arg_33_
-  local ports = _arg_33_["ports"]
+local function start_repl(_33_)
+  local _arg_34_ = _33_
+  local options = _arg_34_
+  local ports = _arg_34_["ports"]
   setup_udp(options)
   local action_step0 = action_step(ports.action)
   local repl_step0 = repl_step()

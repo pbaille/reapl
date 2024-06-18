@@ -49,11 +49,24 @@
   (json.encode (deep-encode-fn data)
                {}))
 
-(fn respond [opts output]
+(fn string-chunk [s n]
+  (var ret [])
+  (for [i 1 (# s) n]
+    (table.insert ret (s:sub i (- (+ i n) 1))))
+  ret)
+
+(fn respond [opts data]
   (let [res (u.tbl.merge opts
-                         {: output})]
-    (dbg [:out res])
-    (output-socket:send (encode res))))
+                         {: data})
+        encoded (encode res)
+        len (# encoded)]
+    ;(dbg [:out res])
+    (if (> len 32000)
+        (let [chunks (string-chunk (encode data) 8000)]
+          (each [_ chunk (ipairs chunks)]
+            (output-socket:send (encode {:id opts.id :data chunk})))
+          (output-socket:send (encode {:id opts.id :op opts.op})))
+        (output-socket:send encoded))))
 
 (fn error-handler [opts error-type]
   (fn [e]
