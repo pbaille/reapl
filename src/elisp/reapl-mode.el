@@ -134,8 +134,9 @@
 
   (defun reapl-mode_insert-reapl-command (msg)
     "Insert a reapl server command request."
+    (print (list :insert-cmd msg))
     (insert (reapl-mode_highlight-str
-             'fennel-mode (format "%s" (concat "," (plist-get msg :op) " " (plist-get msg :data))))))
+             'fennel-mode (format "%s" (concat (symbol-name (plist-get msg :op)) " " (plist-get msg :data))))))
 
   (defun reapl-mode_insert-formatted-doc-output (doc-str)
     "Insert formatted docstring (DOC-STR) into current buffer."
@@ -143,53 +144,6 @@
       (insert (car formatted))
       (insert "\n\n")
       (insert (cdr formatted))))
-
-  (comment
-   (defun reapl-mode_print-evaluation-result (msg)
-     "Handle the result of an eval operation. MSG is an alist decoded from json."
-     (let ((buffer (process-buffer reapl-mode_receive-proc)))
-       (with-current-buffer buffer
-         (goto-char (point-max))
-         (insert "\n\n")
-         ;; insert input expression
-         (insert (reapl-mode_highlight-str
-                  'fennel-mode ":data-is-lost"))
-         (insert (propertize "\n\n=>\n\n" 'face 'font-lock-comment-face))
-         ;; insert return
-         (let* ((output (plist-get msg :data))
-                (err (plist-get output :error))
-                (value-str (plist-get output :value-str))
-                (value (plist-get output :value)))
-           (cond (err
-                  (insert (propertize (concat (plist-get err :type) " error:\n\n"
-                                              (plist-get err :message))
-                                      'face 'font-lock-warning-face)))
-                 (value-str
-                  (insert (reapl-mode_highlight-str 'reapl-mode value-str)))
-                 (value
-                  (insert (reapl-mode_highlight-str
-                           'json-mode (reapl-mode_prettify-json-string (json-encode value)))))))
-         (insert "\n")
-         ;; insert a line at the end
-         (reapl-mode_insert-line buffer))))
-
-   (defun reapl-mode_print-command-result (msg)
-     "Handle the result of a command. MSG is an alist decoded from json."
-     (let* ((buffer (process-buffer reapl-mode_receive-proc)))
-       (with-current-buffer buffer
-         (goto-char (point-max))
-         (insert "\n\n")
-         ;; insert input expression
-         (reapl-mode_insert-reapl-command msg)
-         ;; input/output separator
-         (insert (propertize "\n\n=>\n\n" 'face 'font-lock-comment-face))
-         ;; insert return
-         (cond ((equal (plist-get msg :op) "doc")
-                (reapl-mode_insert-formatted-doc-output (reapl-mode_output-first-value msg)))
-               (t (reapl-mode_insert-json-output msg)))
-         (insert "\n")
-         ;; insert a line at the end
-         (reapl-mode_insert-line buffer)))))
 
   (defun reapl-mode_wrap-insertion-fn (req f)
     (lambda (res)
@@ -288,24 +242,6 @@
           :kind (cond ((eq type "function") 'function)
                       ((eq type "table") 'module)
                       (t (or type 'variable))))))
-
-'(defun reapl-mode_complete ()
-  "Completion at point function."
-  (interactive)
-  (reapl-mode_complete-symbol-at-point)
-  (sleep-for 0.1)
-  (let ((bounds (bounds-of-thing-at-point 'symbol)))
-    (list (car bounds)
-          (cdr bounds)
-          (plist-get reapl-mode_completions :completions)
-          :annotation-function
-          (lambda (item)
-            (plist-get (reapl-mode_completion-details item)
-                       :type))
-          :company-kind
-          (lambda (item)
-            (plist-get (reapl-mode_completion-details item)
-                       :kind)))))
 
 (defun reapl-mode_company-backend (command &optional arg &rest ignored)
   "Company backend for reapl-mode. COMMAND, ARG, IGNORED."
@@ -406,7 +342,7 @@ CALLBACK will be called with the response.."
   "Request the documentation for S to the remote reaper server.
 the SILENT optional arg is staying that the result should not be printed."
   (reapl-mode_send-message :doc s
-                           (reapl-mode_make-doc-request-handler (list :op :eval :data s))))
+                           (reapl-mode_make-doc-request-handler (list :op :doc :data s))))
 
 (defun reapl-mode_thing-at-point ()
   "Return the thing at point.
