@@ -19,29 +19,48 @@
   "Build a process filter function given an HANDLER plist."
   (let ((state pb-udp_default-state))
     (lambda (_ string)
+      ;(print "ping")
       (let ((json-object-type 'plist)
             (json-array-type 'list))
         (let* ((json-message (json-read-from-string string))
                (id (plist-get json-message :id))
                (op (plist-get json-message :op))
                (data (plist-get json-message :data)))
+          '(print "-ping:\n")
+          '(print (list :id id :op op :data data))
           (when id
             (unless (equal (plist-get state :id) id)
-              (setq state pb-udp_default-state))
+              (setq state pb-udp_default-state)
+              '(print "--- reset 1"))
             (cond ((and data (not op))
+                   '(print "--- concat")
                    (setq state
                          (list :id id
                                :data (concat (plist-get state :data) data))))
                   (op
-                   (let* ((msg (if (equal (plist-get state :id) id)
-                                   (plist-put json-message :data (plist-get state :data))
-                                 json-message))
-                          (ret (funcall handler msg)))
-                     (setq state pb-udp_default-state)
-                     ret))
+                   (progn '(when (equal (plist-get state :id) id)
+                             (print "will dump --------------------------------------")
+                             (with-temp-file "/Users/pierrebaille/Desktop/last-chunked-res.json"
+                               (insert (plist-get state :data))))
+                          (let* ((msg (if (equal (plist-get state :id) id)
+                                          (let ((encoded (json-read-from-string
+                                                          (plist-get state :data))))
+                                            '(print `((chunk-data-str ,(plist-get state :data))
+                                                     (decoded ,(json-read-from-string (plist-get state :data)))
+                                                     ))
+                                            '(print `(len ,(length (plist-put json-message :data
+                                                               (json-read-from-string
+                                                                (plist-get state :data))))))
+                                            (plist-put json-message :data encoded))
+                                        json-message))
+                                 (ret (funcall handler msg)))
+                            (setq state pb-udp_default-state)
+                            '(print "--- reset 2")
+                            ret)))
                   (t
                    (setq state pb-udp_default-state)
-                   (error (format "bad format msg: %s" json-message))))))))))
+                   (print "SHOULD NOT BE THERE")
+                   (error "Bad format msg")))))))))
 
 (defun pb-udp_start-listening (host port handler)
   "Start to listen HOST PORT, handling incoming messages with HANDLER."
