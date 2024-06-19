@@ -7,8 +7,7 @@
 ;; Created: June 04, 2024
 ;; Modified: June 04, 2024
 ;; Version: 0.0.1
-;; Keywords: abbrev bib c calendar comm convenience data docs emulations extensions faces files frames games hardware help hypermedia i18n internal languages lisp local maint mail matching mouse multimedia news outlines processes terminals tex tools unix vc wp
-;; Homepage: https://github.com/pierrebaille/reapl-mode
+;; Homepage: https://github.com/pbaille/reapl-mode
 ;; Package-Requires: ((emacs "27.1") (fennel-mode "0.9.1"))
 ;;
 ;; This file is not part of GNU Emacs.
@@ -34,7 +33,7 @@
   (add-to-list 'eldoc-documentation-functions 'reapl-mode_eldoc)
   (add-to-list 'company-backends 'reapl-mode_complete))
 
-;; connection
+;; Connection
 ;; --------------------------------------------
 
 (defvar reapl-mode_repl-port 9999)
@@ -60,142 +59,142 @@
      :type 'datagram
      :family 'ipv4)))
 
-;; evaluation
+;; Evaluation
 ;; --------------------------------------------
 
 (defvar reapl-mode_history nil)
 (defvar reapl-mode_receive-port 9997)
 (defvar reapl-mode_receive-proc nil)
 (defvar reapl-mode_completions (list))
-
-(progn
-  (defun reapl-mode_prettify-json-string (json-str)
-    "Prettify the given JSON-STR."
-    (let ((json-data (json-parse-string json-str)))
-      (with-temp-buffer
-        (insert (json-encode json-data))
-        (json-pretty-print (point-min) (point-max))
-        (buffer-string))))
-
-  (defun reapl-mode_highlight-str (mode str)
-    "Highlight STR with syntax highlighting from given MODE."
-    (with-temp-buffer
-      (insert str)
-      (funcall mode)
-      (font-lock-ensure)
-      (buffer-string)))
-
-  (defun reapl-mode_insert-line (buffer)
-    "Insert a line in BUFFER."
-    ;; this expression was initially used to compute width
-    '(window-width (get-buffer-window buffer))
-    (let* ((start (point))
-           (end (progn (insert (make-string 80 ?\s)) (point)))) ; insert a string of spaces
-      (put-text-property start end 'face `(:underline ,(face-foreground 'font-lock-comment-face)))))
-
-  (defun reapl-mode_count-indentation (line)
-    "Count leading spaces in a LINE."
-    (if (string-match "^\\s-+" line)
-        (length (match-string 0 line))
-      0))
-
-  (defun reapl-mode_remove-leading-spaces (str n)
-    "Remove the first N space characters from the beginning of STR."
-    (let ((result str)
-          (count n))
-      (while (and (> count 0) (string-prefix-p " " result))
-        (setq result (substring result 1))
-        (setq count (1- count)))
-      result))
-
-  (defun reapl-mode_formatted-doc (doc-str)
-    "Parse docstring (DOC-STR) into `(form . docstring)`."
-    (let* ((splitted (split-string doc-str "\n"))
-           (form (car splitted))
-           (lines (cdr splitted))
-           (line-len (length lines)))
-      (cons (reapl-mode_highlight-str 'fennel-mode form)
-            (propertize (cond ((eq line-len 0) "")
-                              ((eq line-len 1) (car lines))
-                              ;; if multi-line docstring, we are fixing potential indentation issues
-                              (t (let* ((first-line (car lines))
-                                        (second-line (cadr lines))
-                                        (first-indentation (reapl-mode_count-indentation first-line))
-                                        (second-indentation (reapl-mode_count-indentation second-line))
-                                        (indent-difference (- second-indentation first-indentation))
-                                        (trimmed-lines (mapcar (lambda (s) (reapl-mode_remove-leading-spaces s indent-difference)) (cdr lines)))
-                                        (doc-txt (mapconcat 'identity (cons first-line trimmed-lines) "\n")))
-                                   doc-txt)))
-                        'face 'font-lock-function-name-face ))))
-
-  (defun reapl-mode_output-first-value (msg)
-    "Extract the first value from the reapl server response message."
-    (let ((output (plist-get msg :data)))
-      (if-let* ((values (plist-get output :values)))
-          (car values)
-        (plist-get output :value))))
-
-  (defun reapl-mode_insert-json-output (msg)
-    "Insert the output value of the reapl server response (MSG) as highlighted JSON."
-    (insert (reapl-mode_highlight-str
-             'json-mode (reapl-mode_prettify-json-string (json-encode (plist-get msg :data))))))
-
-  (defun reapl-mode_insert-reapl-command (msg)
-    "Insert a reapl server command request."
-    (insert (reapl-mode_highlight-str
-             'fennel-mode (format "%s" (concat (symbol-name (plist-get msg :op)) " " (plist-get msg :data))))))
-
-  (defun reapl-mode_insert-formatted-doc-output (doc-str)
-    "Insert formatted docstring (DOC-STR) into current buffer."
-    (let ((formatted (reapl-mode_formatted-doc doc-str)))
-      (insert (car formatted))
-      (insert "\n\n")
-      (insert (cdr formatted))))
-
-  (defun reapl-mode_wrap-insertion-fn (req f)
-    (lambda (res)
-      (let* ((buffer (process-buffer reapl-mode_receive-proc)))
-        (with-current-buffer buffer
-          (goto-char (point-max))
-          (insert "\n\n")
-          ;; insert input expression
-          (reapl-mode_insert-reapl-command req)
-          ;; input/output separator
-          (insert (propertize "\n\n=>\n\n" 'face 'font-lock-comment-face))
-          ;; insert return
-          (funcall f res)
-
-          (insert "\n")
-          ;; insert a line at the end
-          (reapl-mode_insert-line buffer)))))
-
-  (defun reapl-mode_make-default-request-handler (req)
-    (reapl-mode_wrap-insertion-fn req #'reapl-mode_insert-json-output))
-
-  (defun reapl-mode_make-doc-request-handler (req)
-    (reapl-mode_wrap-insertion-fn req
-                                  (lambda (res)
-                                    (reapl-mode_insert-formatted-doc-output (reapl-mode_output-first-value res)))))
-
-  (defun reapl-mode_insert-evaluation-result (msg)
-      (let* ((output (plist-get msg :data))
-             (err (plist-get output :error))
-             (value-str (plist-get output :value-str))
-             (value (plist-get output :value)))
-        (cond (err
-               (insert (propertize (concat (plist-get err :type) " error:\n\n"
-                                           (plist-get err :message))
-                                   'face 'font-lock-warning-face)))
-              (value-str
-               (insert (reapl-mode_highlight-str 'reapl-mode value-str)))
-              (value
-               (insert (reapl-mode_highlight-str
-                        'json-mode (reapl-mode_prettify-json-string (json-encode value))))))))
-
-  (defun reapl-mode_make-evaluation-request-handler (req)
-    (reapl-mode_wrap-insertion-fn req #'reapl-mode_insert-evaluation-result)))
-
 (defvar reapl-mode_callbacks ())
+
+(progn :helpers
+
+       (defun reapl-mode_prettify-json-string (json-str)
+         "Prettify the given JSON-STR."
+         (let ((json-data (json-parse-string json-str)))
+           (with-temp-buffer
+             (insert (json-encode json-data))
+             (json-pretty-print (point-min) (point-max))
+             (buffer-string))))
+
+       (defun reapl-mode_highlight-str (mode str)
+         "Highlight STR with syntax highlighting from given MODE."
+         (with-temp-buffer
+           (insert str)
+           (funcall mode)
+           (font-lock-ensure)
+           (buffer-string)))
+
+       (defun reapl-mode_insert-line (buffer)
+         "Insert a line in BUFFER."
+         ;; this expression was initially used to compute width
+         '(window-width (get-buffer-window buffer))
+         (let* ((start (point))
+                (end (progn (insert (make-string 80 ?\s)) (point)))) ; insert a string of spaces
+           (put-text-property start end 'face `(:underline ,(face-foreground 'font-lock-comment-face)))))
+
+       (defun reapl-mode_count-indentation (line)
+         "Count leading spaces in a LINE."
+         (if (string-match "^\\s-+" line)
+             (length (match-string 0 line))
+           0))
+
+       (defun reapl-mode_remove-leading-spaces (str n)
+         "Remove the first N space characters from the beginning of STR."
+         (let ((result str)
+               (count n))
+           (while (and (> count 0) (string-prefix-p " " result))
+             (setq result (substring result 1))
+             (setq count (1- count)))
+           result))
+
+       (defun reapl-mode_formatted-doc (doc-str)
+         "Parse docstring (DOC-STR) into `(form . docstring)`."
+         (let* ((splitted (split-string doc-str "\n"))
+                (form (car splitted))
+                (lines (cdr splitted))
+                (line-len (length lines)))
+           (cons (reapl-mode_highlight-str 'fennel-mode form)
+                 (propertize (cond ((eq line-len 0) "")
+                                   ((eq line-len 1) (car lines))
+                                   ;; if multi-line docstring, we are fixing potential indentation issues
+                                   (t (let* ((first-line (car lines))
+                                             (second-line (cadr lines))
+                                             (first-indentation (reapl-mode_count-indentation first-line))
+                                             (second-indentation (reapl-mode_count-indentation second-line))
+                                             (indent-difference (- second-indentation first-indentation))
+                                             (trimmed-lines (mapcar (lambda (s) (reapl-mode_remove-leading-spaces s indent-difference)) (cdr lines)))
+                                             (doc-txt (mapconcat 'identity (cons first-line trimmed-lines) "\n")))
+                                        doc-txt)))
+                             'face 'font-lock-function-name-face ))))
+
+       (defun reapl-mode_output-first-value (msg)
+         "Extract the first value from the reapl server response message."
+         (let ((output (plist-get msg :data)))
+           (if-let* ((values (plist-get output :values)))
+               (car values)
+             (plist-get output :value))))
+
+       (defun reapl-mode_insert-json-output (msg)
+         "Insert the output value of the reapl server response (MSG) as highlighted JSON."
+         (insert (reapl-mode_highlight-str
+                  'json-mode (reapl-mode_prettify-json-string (json-encode (plist-get msg :data))))))
+
+       (defun reapl-mode_insert-reapl-command (msg)
+         "Insert a reapl server command request."
+         (insert (reapl-mode_highlight-str
+                  'fennel-mode (format "%s" (concat (symbol-name (plist-get msg :op)) " " (plist-get msg :data))))))
+
+       (defun reapl-mode_insert-formatted-doc-output (doc-str)
+         "Insert formatted docstring (DOC-STR) into current buffer."
+         (let ((formatted (reapl-mode_formatted-doc doc-str)))
+           (insert (car formatted))
+           (insert "\n\n")
+           (insert (cdr formatted))))
+
+       (defun reapl-mode_wrap-insertion-fn (req f)
+         (lambda (res)
+           (let* ((buffer (process-buffer reapl-mode_receive-proc)))
+             (with-current-buffer buffer
+               (goto-char (point-max))
+               (insert "\n\n")
+               ;; insert input expression
+               (reapl-mode_insert-reapl-command req)
+               ;; input/output separator
+               (insert (propertize "\n\n=>\n\n" 'face 'font-lock-comment-face))
+               ;; insert return
+               (funcall f res)
+
+               (insert "\n")
+               ;; insert a line at the end
+               (reapl-mode_insert-line buffer)))))
+
+       (defun reapl-mode_make-default-request-handler (req)
+         (reapl-mode_wrap-insertion-fn req #'reapl-mode_insert-json-output))
+
+       (defun reapl-mode_make-doc-request-handler (req)
+         (reapl-mode_wrap-insertion-fn req
+                                       (lambda (res)
+                                         (reapl-mode_insert-formatted-doc-output (reapl-mode_output-first-value res)))))
+
+       (defun reapl-mode_insert-evaluation-result (msg)
+         (let* ((output (plist-get msg :data))
+                (err (plist-get output :error))
+                (value-str (plist-get output :value-str))
+                (value (plist-get output :value)))
+           (cond (err
+                  (insert (propertize (concat (plist-get err :type) " error:\n\n"
+                                              (plist-get err :message))
+                                      'face 'font-lock-warning-face)))
+                 (value-str
+                  (insert (reapl-mode_highlight-str 'reapl-mode value-str)))
+                 (value
+                  (insert (reapl-mode_highlight-str
+                           'json-mode (reapl-mode_prettify-json-string (json-encode value))))))))
+
+       (defun reapl-mode_make-evaluation-request-handler (req)
+         (reapl-mode_wrap-insertion-fn req #'reapl-mode_insert-evaluation-result)))
 
 (defun reapl-mode_on-receive (msg)
   "Handle the received messages MSG."
@@ -262,7 +261,7 @@
   (set-process-filter reapl-mode_receive-proc
                       (reapl-mode_mk-proc-filter #'reapl-mode_on-receive)))
 
-;; completions
+;; Completion
 ;; --------------------------------------------
 
 (defun reapl-mode_completion-details (item)
