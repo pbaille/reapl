@@ -18,17 +18,17 @@
 
 (fn misc.log [param]
   "Log the given parameter to the reaper console."
-  (reaper.ShowConsoleMsg (.. (tostring param) "\n")))
+  (r.ShowConsoleMsg (.. (tostring param) "\n")))
 
 (fn misc.pp [param]
   "Pretty print the given parameter to the reaper console."
-  (reaper.ShowConsoleMsg (pp.pformat param)))
+  (r.ShowConsoleMsg (pp.pformat param)))
 
 (macro misc.undo-block [...]
   `(do (r.Undo_BeginBlock)
        ,...
        (r.Undo_EndBlock (: (select 2 (r.get_action_context)) :match
-                             "([^\\/]+)%.%w+") (- 1))))
+                           "([^\\/]+)%.%w+") (- 1))))
 
 ;; ------------------------------------------------------------
 (local midi-editor {:pitch-cursor {}})
@@ -43,16 +43,27 @@
 
 (fn midi-editor.pitch-cursor.get [me]
   "Get the pitch cursor position from the given MIDI editor instance."
-  (reaper.MIDIEditor_GetSetting_int me "active_note_row"))
+  (r.MIDIEditor_GetSetting_int me "active_note_row"))
 
 (fn midi-editor.pitch-cursor.set [me i]
   "Set the pitch cursor position in the given MIDI editor instance."
-  (reaper.MIDIEditor_SetSetting_int me "active_note_row" i))
+  (r.MIDIEditor_SetSetting_int me "active_note_row" i))
 
 (fn midi-editor.pitch-cursor.update [me delta]
   "Update the pitch cursor position by a given delta
    in the given MIDI editor instance."
   (midi-editor.pitch-cursor.set me (+ delta (midi-editor.pitch-cursor.get me))))
+
+(fn midi-editor.get-takes [me]
+  "Get all takes from the given MIDI editor instance."
+  (var takes [])
+  (var idx 0)
+  (var take (r.MIDIEditor_EnumTakes me idx false))
+  (while take
+    (table.insert takes take)
+    (set idx (+ idx 1))
+    (set take (r.MIDIEditor_EnumTakes me idx false)))
+  takes)
 
 
 ;; ------------------------------------------------------------
@@ -153,11 +164,11 @@
 
 (fn take.project-time->ppq [t x]
   "Convert project time `x` to PPQ in the given take `t`."
-  (reaper.MIDI_GetPPQPosFromProjTime t x))
+  (r.MIDI_GetPPQPosFromProjTime t x))
 
 (fn take.ppq->project-time [t x]
   "Convert PPQ `x` to project time in the given take `t`."
-  (reaper.MIDI_GetProjTimeFromPPQPos t x))
+  (r.MIDI_GetProjTimeFromPPQPos t x))
 
 (fn take.project-time->qpos [t x]
   "Convert project time `x` to QPOS in the given take `t`."
@@ -171,22 +182,22 @@
 
 (fn take.grid.get [t]
   "Get the grid setting of the given take `t`."
-  (reaper.MIDI_GetGrid t))
+  (r.MIDI_GetGrid t))
 
 (fn take.grid.get-ppq [t]
   "Get the grid setting in PPQ for the given take `t`."
-  (take.qpos->ppq t (reaper.MIDI_GetGrid t)))
+  (take.qpos->ppq t (r.MIDI_GetGrid t)))
 
 (fn take.grid.set [t x]
   "Set the grid of the given take `t` to `x`."
   (let [sig (time.signature.get)]
-    (reaper.SetMIDIEditorGrid 0 (/ x sig.bpi))))
+    (r.SetMIDIEditorGrid 0 (/ x sig.bpi))))
 
 ;; time-selection
 
 (fn take.time-selection.get [t]
   "Get the time selection of the given take `t`."
-  (let [(start end) (reaper.GetSet_LoopTimeRange false false 0 0 false)]
+  (let [(start end) (r.GetSet_LoopTimeRange false false 0 0 false)]
     (if (not (= start end))
         {:start (take.project-time->ppq t start)
          :end (take.project-time->ppq t end)})))
@@ -195,7 +206,7 @@
   "Set the time selection of the given take `t` from `start` to `end`."
   (let [start (take.ppq->project-time t start)
         end (take.ppq->project-time t end)]
-    (reaper.GetSet_LoopTimeRange true false start end false)))
+    (r.GetSet_LoopTimeRange true false start end false)))
 
 (fn take.time-selection.get-qpos [t]
   "Get the time selection in QPOS of the given take `t`."
@@ -249,8 +260,8 @@
 
 (fn take.cursor.set [t p]
   "Set the cursor position in the given take `t` to PPQ position `p`."
-  (reaper.SetEditCurPos (ru.take.ppq->project-time t p)
-                        true false))
+  (r.SetEditCurPos (ru.take.ppq->project-time t p)
+                   true false))
 
 (fn take.cursor.get-qpos [t]
   "Get the cursor position in QPOS for the given take `t`."
@@ -262,15 +273,15 @@
 
 (fn take.cursor.ceil [t]
   "Set the cursor to the next grid division in the given take `t`."
-  (take.cursor.set t (reaper.BR_GetNextGridDivision (take.cursor.get t))))
+  (take.cursor.set t (r.BR_GetNextGridDivision (take.cursor.get t))))
 
 (fn take.cursor.floor [t]
   "Set the cursor to the previous grid division in the given take `t`."
-  (take.cursor.set t (reaper.BR_GetPrevGridDivision (take.cursor.get t))))
+  (take.cursor.set t (r.BR_GetPrevGridDivision (take.cursor.get t))))
 
 (fn take.cursor.round [t]
   "Set the cursor to the closest grid division in the given take `t`."
-  (take.cursor.set t (reaper.BR_GetClosestGridDivision (take.cursor.get t))))
+  (take.cursor.set t (r.BR_GetClosestGridDivision (take.cursor.get t))))
 
 (fn take.cursor.update [t delta]
   "Update the cursor position by `delta` grid units in the given take `t`."
@@ -295,19 +306,19 @@
   "Move the focus to the next note in the given take `t`."
   (let [{: x : y} (take.focus.get t)
         candidates (take.notes.filter t (fn [n] (or (> n.start-position x)
-                                                   (and (= n.start-position x)
-                                                        (> n.pitch y)))))]
+                                                    (and (= n.start-position x)
+                                                         (> n.pitch y)))))]
     (take.focus-note t
-     (seq.first (seq.sort-with candidates note.lte)))))
+                     (seq.first (seq.sort-with candidates note.lte)))))
 
 (fn take.focus.previous-note [t]
   "Move the focus to the previous note in the given take `t`."
   (let [{: x : y} (take.focus.get t)
         candidates (take.notes.filter t (fn [n] (or (< n.start-position x)
-                                                   (and (= n.start-position x)
-                                                        (< n.pitch y)))))]
+                                                    (and (= n.start-position x)
+                                                         (< n.pitch y)))))]
     (take.focus-note t
-     (seq.first (seq.sort-with candidates note.gte)))))
+                     (seq.first (seq.sort-with candidates note.gte)))))
 
 (fn take.focus.get-closest-note [t]
   "Get the closest note to the current focus position in the given take `t`."
@@ -467,23 +478,23 @@
   (let [(_ _ cc-cnt _) (r.MIDI_CountEvts t)] cc-cnt))
 
 (comment
-  (fn cycle-select-at-cursor []
-    "Cycle through notes at the cursor position."
-    (let [cp (cursor-position (active-take))
-          notes (filter-notes #(= $.start-position cp))
-          note-count (length notes)]
-      (table.sort notes (fn [{:pitch p1} {:pitch p2}] (> p1 p2)))
-      (let [selected-idxs (icollect [i n (ipairs notes)]
-                            (if n.selected i))]
-        (each [_ n (ipairs notes)]
-          (transform-note n {:selected (fn [_] false)}))
-        (each [_ i (ipairs selected-idxs)]
-          (transform-note (. notes (+ 1 (% i note-count)))
-                          {:selected (fn [_] true)})))))
+ (fn cycle-select-at-cursor []
+   "Cycle through notes at the cursor position."
+   (let [cp (cursor-position (active-take))
+         notes (filter-notes #(= $.start-position cp))
+         note-count (length notes)]
+     (table.sort notes (fn [{:pitch p1} {:pitch p2}] (> p1 p2)))
+     (let [selected-idxs (icollect [i n (ipairs notes)]
+                           (if n.selected i))]
+       (each [_ n (ipairs notes)]
+         (transform-note n {:selected (fn [_] false)}))
+       (each [_ i (ipairs selected-idxs)]
+         (transform-note (. notes (+ 1 (% i note-count)))
+                         {:selected (fn [_] true)})))))
 
-  (fn channel-up-at-cursor []
-    "Increase the midi channel of the note at the cursor position."
-    (transform-at-cursor {:channel #(+ 1 $)})))
+ (fn channel-up-at-cursor []
+   "Increase the midi channel of the note at the cursor position."
+   (transform-at-cursor {:channel #(+ 1 $)})))
 
 {: take
  : note

@@ -175,6 +175,7 @@
  ((?. actions :move :children :left :fn))
  (action-path :move.left)
  (actions.do-action :move.left)
+ (local do-action actions.do-action)
  (do-action :move.right)
  (do-action :move.up)
  (do-action nil))
